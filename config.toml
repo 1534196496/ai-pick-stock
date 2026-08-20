@@ -1,0 +1,29 @@
+[market]
+provider = "akshare"
+adjust = "qfq"
+history_calendar_days = 520
+universe_size = 300
+min_listing_days = 150
+min_daily_amount_cny = 100000000
+exclude_name_keywords = ["ST", "退"]
+
+[selection]
+top_n = 20
+max_pe = 100.0
+max_pb = 20.0
+
+[weights]
+momentum = 0.35
+risk = 0.25
+valuation = 0.20
+liquidity = 0.10
+stability = 0.10
+
+[paths]
+database = "data/stocks.db"
+reports = "reports"
+
+[ai]
+enabled = false
+model = "gpt-5.6-luna"
+
