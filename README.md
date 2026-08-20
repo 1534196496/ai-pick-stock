@@ -54,6 +54,39 @@ py -3.12 -m venv .venv
 
 浏览器访问 `http://localhost:8501`。网站只监听本机；如需手机或外网访问，应先增加登录验证和 HTTPS，不建议直接开放端口。
 
+## Docker Compose 服务器部署
+
+服务器需要安装 Docker Engine 和 Docker Compose 插件。拉取代码后执行：
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose ps
+```
+
+默认只绑定服务器的 `127.0.0.1:8501`，容器内部监听 `0.0.0.0:8501`。生产环境建议让 Nginx/Caddy 反向代理到 `http://127.0.0.1:8501`，并在代理层配置 HTTPS、登录认证和访问限制。查看运行状态与日志：
+
+```bash
+curl --fail http://127.0.0.1:8501/_stcore/health
+docker compose logs -f dashboard
+```
+
+如确认服务器防火墙和访问控制已经配置好，也可在 `.env` 中设置 `BIND_ADDRESS=0.0.0.0` 后重启，使 `http://服务器IP:8501` 可访问。该应用自身不提供登录认证，不应把裸端口直接暴露到公网。
+
+SQLite 数据、报告、日志和备份分别保存在 Docker 命名卷中，执行 `docker compose down` 或重建镜像不会删除。不要使用 `docker compose down -v`，除非明确要删除全部持久化数据。可在同一镜像和数据卷中手动运行数据任务：
+
+```bash
+docker compose run --rm dashboard stock-picker daily
+docker compose run --rm dashboard stock-picker recommend --asset all
+```
+
+更新版本：
+
+```bash
+git pull
+docker compose up -d --build
+```
+
 如需登录 Windows 后自动启动网站，只需注册一次：
 
 ```powershell

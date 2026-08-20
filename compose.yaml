@@ -1,0 +1,30 @@
+name: ai-pick-stock
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-pick-stock:local
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8501}:8501"
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    volumes:
+      - stock_data:/app/data
+      - stock_reports:/app/reports
+      - stock_logs:/app/logs
+      - stock_backups:/app/backups
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  stock_data:
+  stock_reports:
+  stock_logs:
+  stock_backups:
