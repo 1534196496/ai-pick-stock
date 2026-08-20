@@ -95,7 +95,17 @@ st.markdown(
     section[data-testid="stSidebar"] { background:#13241d; }
     section[data-testid="stSidebar"] * { color:#e9f1ed !important; }
     section[data-testid="stSidebar"] .stButton button { border:0; background:transparent; text-align:left; justify-content:flex-start; padding:.38rem .7rem; }
-    section[data-testid="stSidebar"] .stButton button:hover { background:#274138; }
+    section[data-testid="stSidebar"] .stButton button:hover,
+    section[data-testid="stSidebar"] .stButton button:focus { background:#274138 !important; }
+    section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] { background:#315b4b !important; }
+    section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"]:hover,
+    section[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"]:focus { background:#3b715d !important; }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] details,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary { background:transparent !important; }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary:focus,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] details[open] > summary { background:#274138 !important; }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary:focus-visible { outline:3px solid #ffbf47 !important; outline-offset:2px; }
     [data-testid="stMetric"] { background:white; border:1px solid var(--line); padding:15px 17px; border-radius:10px; }
     div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
     .page-title { font-size:2rem; font-weight:720; letter-spacing:-.04em; margin:.1rem 0 .3rem; }

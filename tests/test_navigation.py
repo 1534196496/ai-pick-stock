@@ -16,3 +16,10 @@ def test_every_declared_page_has_a_render_branch():
 def test_removed_page_name_is_not_a_navigation_target():
     source = Path("dashboard.py").read_text(encoding="utf-8")
     assert 'st.session_state["page"] = "股票概览"' not in source
+
+
+def test_sidebar_navigation_keeps_contrast_in_interaction_states():
+    source = Path("dashboard.py").read_text(encoding="utf-8")
+    assert '[data-testid="stExpander"] details[open] > summary' in source
+    assert '[data-testid="stExpander"] summary:focus' in source
+    assert 'button[data-testid="stBaseButton-primary"]' in source
