@@ -17,6 +17,7 @@
     "02-代码调研与影响分析.md",
     "03-交叉验证.md",
     "04-设计方案.md",
+    "05-Google-Cloud-Codex-移交.md",
     "实施计划.md",
     "任务清单.md"
   ],
@@ -46,5 +47,5 @@
     "git_commit_merge_push": false
   },
   "license": "Apache-2.0",
-  "last_updated": "2026-08-24T20:05:04+08:00"
+  "last_updated": "2026-08-24T20:13:08+08:00"
 }
