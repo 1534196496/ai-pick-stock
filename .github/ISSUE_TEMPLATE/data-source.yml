@@ -1,0 +1,76 @@
+name: 数据源故障
+description: 报告股票行情、基金净值或资产主数据异常
+title: "[数据] "
+labels:
+  - data-source
+body:
+  - type: markdown
+    attributes:
+      value: |
+        免费数据源可能延迟或短时不可用。请提供标的、来源和时间，以便区分上游异常、同步延迟和展示错误。
+  - type: dropdown
+    id: data_type
+    attributes:
+      label: 数据类型
+      options:
+        - A 股行情
+        - 基金净值
+        - 资产名称或分类
+        - 交易日历
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: instrument
+    attributes:
+      label: 市场、代码与名称
+      placeholder: "CN / 000001 / 平安银行"
+    validations:
+      required: true
+  - type: input
+    id: observed_at
+    attributes:
+      label: 观察时间
+      description: 使用绝对时间并注明时区。
+      placeholder: "2026-08-24 15:10 Asia/Shanghai"
+    validations:
+      required: true
+  - type: input
+    id: displayed_at
+    attributes:
+      label: 页面显示的数据时间
+      description: 若页面没有显示时间，请填写“未显示”。
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 页面显示的数据来源
+      description: 若页面没有显示来源，请填写“未显示”。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际数据与期望数据
+      description: 请说明差异，并提供可公开核验的来源；不要粘贴受限接口响应。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现与验证步骤
+      description: 说明如何重新查询，以及异常是否持续存在。
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: 提交确认
+      options:
+        - label: 我已确认代码、市场和时间没有填错。
+          required: true
+        - label: 我未附带凭据、受限数据、个人账户或真实持仓信息。
+          required: true
+        - label: 我理解免费数据不承诺交易所实时性。
+          required: true

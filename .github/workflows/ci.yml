@@ -1,0 +1,81 @@
+name: 持续集成
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev2.x
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API 质量门
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: 安装 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: 3.12.13
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        with:
+          version: 0.11.6
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+      - name: 安装依赖
+        run: uv sync --frozen --all-groups
+      - name: 检查代码风格
+        run: uv run ruff check .
+      - name: 检查类型
+        run: uv run mypy app
+      - name: 运行测试
+        run: uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=80
+
+  web:
+    name: Web 质量门
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: 安装 Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.15.0
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: 安装依赖
+        run: npm ci
+      - name: 检查代码风格
+        run: npm run lint
+      - name: 检查类型
+        run: npm run typecheck
+      - name: 运行测试
+        run: npm run test -- --coverage
+      - name: 构建前端
+        run: npm run build
+
+  compose:
+    name: Compose 与镜像校验
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: 校验 Compose
+        run: docker compose -f compose.v2.yaml config --quiet
+      - name: 构建 V2 镜像
+        run: docker compose -f compose.v2.yaml build
