@@ -1,7 +1,6 @@
 """认证 API 的请求、成功响应与错误响应契约。"""
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -46,17 +45,3 @@ class SessionResponse(ApiModel):
     email: str
     status: UserStatus
     created_at: datetime
-
-
-class ErrorDetail(ApiModel):
-    """描述可由客户端稳定匹配的单项 API 错误。"""
-
-    code: str
-    message: str
-    details: dict[str, Any] | None = None
-
-
-class ErrorResponse(ApiModel):
-    """统一包装 API 错误，供后续全局异常处理中间件复用。"""
-
-    error: ErrorDetail

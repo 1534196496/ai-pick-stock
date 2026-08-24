@@ -60,6 +60,8 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: 安装依赖
         run: npm ci
+      - name: 校验 OpenAPI TypeScript 生成物
+        run: npm run api:generate && git diff --exit-code -- src/api/generated
       - name: 检查代码风格
         run: npm run lint
       - name: 检查类型

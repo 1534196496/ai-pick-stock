@@ -37,9 +37,11 @@
       "T11",
       "T12",
       "T13",
-      "T14"
+      "T14",
+      "T15",
+      "T16"
     ],
-    "current_task": "T15"
+    "current_task": "T17"
   },
   "operation_authority": {
     "production_parallel_deployment": true,
@@ -47,5 +49,5 @@
     "git_commit_merge_push": false
   },
   "license": "Apache-2.0",
-  "last_updated": "2026-08-24T20:13:08+08:00"
+  "last_updated": "2026-08-24T23:08:22+08:00"
 }

@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     database_url: SecretStr = Field(min_length=1)
     environment: Literal["development", "test", "production"] = "development"
     session_lifetime_days: int = Field(default=30, ge=1, le=90)
+    trusted_origins: tuple[str, ...] = (
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:18080",
+    )
 
     @field_validator("database_url")
     @classmethod

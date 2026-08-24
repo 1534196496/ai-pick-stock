@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 from typing import Annotated
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -12,11 +11,10 @@ from app.api.dependencies import (
     get_optional_session_principal,
     get_session_cookie_policy,
 )
+from app.core.errors import ErrorResponse, create_error_response, get_request_id
 from app.modules.auth.domain import SessionPrincipal, UserIdentity
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.schemas import (
-    ErrorDetail,
-    ErrorResponse,
     LoginRequest,
     RegistrationRequest,
     RegistrationResponse,
@@ -55,16 +53,12 @@ async def register(
             if error.code == "EMAIL_ALREADY_REGISTERED"
             else status.HTTP_422_UNPROCESSABLE_CONTENT
         )
-        response = ErrorResponse(
-            error=ErrorDetail(
-                code=error.code,
-                message=error.message,
-                details={"field": error.field},
-            )
-        )
-        return JSONResponse(
+        return create_error_response(
             status_code=status_code,
-            content=response.model_dump(mode="json", by_alias=True, exclude_none=True),
+            code=error.code,
+            message=error.message,
+            details={"field": error.field},
+            request_id=get_request_id(request),
         )
 
     return RegistrationResponse(
@@ -99,6 +93,7 @@ async def login(
         )
     except AuthenticationError as error:
         return _error_response(
+            request=request,
             status_code=status.HTTP_401_UNAUTHORIZED,
             code=error.code,
             message=error.message,
@@ -118,11 +113,13 @@ async def login(
     responses={status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse}},
 )
 async def current_session(
+    request: Request,
     principal: Annotated[SessionPrincipal | None, Depends(get_optional_session_principal)],
 ) -> SessionResponse | JSONResponse:
     """从服务端不透明会话恢复当前用户身份。"""
     if principal is None:
         return _error_response(
+            request=request,
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="AUTHENTICATION_REQUIRED",
             message="请先登录",
@@ -153,11 +150,8 @@ async def logout(
 
 
 def _resolve_request_id(request: Request) -> str:
-    """仅接受适合审计字段长度的 ASCII 请求标识，否则生成服务端值。"""
-    candidate = request.headers.get("X-Request-ID")
-    if candidate and candidate.isascii() and len(candidate) <= 64:
-        return candidate
-    return f"req_{uuid4().hex}"
+    """复用请求上下文中已经校验的追踪标识写入安全审计。"""
+    return get_request_id(request)
 
 
 def _session_response(identity: UserIdentity) -> SessionResponse:
@@ -170,10 +164,17 @@ def _session_response(identity: UserIdentity) -> SessionResponse:
     )
 
 
-def _error_response(*, status_code: int, code: str, message: str) -> JSONResponse:
+def _error_response(
+    *,
+    request: Request,
+    status_code: int,
+    code: str,
+    message: str,
+) -> JSONResponse:
     """创建不含内部异常细节的统一认证错误响应。"""
-    response = ErrorResponse(error=ErrorDetail(code=code, message=message))
-    return JSONResponse(
+    return create_error_response(
         status_code=status_code,
-        content=response.model_dump(mode="json", by_alias=True, exclude_none=True),
+        code=code,
+        message=message,
+        request_id=get_request_id(request),
     )

@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -11,6 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.core.database import DatabaseProbe, create_database_engine, probe_database
+from app.core.errors import register_error_handlers
+from app.core.middleware import (
+    InMemoryRateLimiter,
+    RateLimiter,
+    RequestContextMiddleware,
+    RequestSecurityMiddleware,
+)
 from app.modules.auth.router import router as auth_router
 
 
@@ -21,7 +28,11 @@ class HealthResponse(BaseModel):
     checks: dict[str, Literal["ok", "unavailable"]] | None = None
 
 
-def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
+def create_app(
+    *,
+    database_probe: DatabaseProbe = probe_database,
+    rate_limiter: RateLimiter | None = None,
+) -> FastAPI:
     """创建 API 应用并注册不依赖外部资源的基础路由。"""
 
     @asynccontextmanager
@@ -45,6 +56,12 @@ def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    register_error_handlers(application)
+    application.add_middleware(
+        RequestSecurityMiddleware,
+        rate_limiter=rate_limiter or InMemoryRateLimiter(),
+    )
+    application.add_middleware(RequestContextMiddleware)
     application.include_router(auth_router, prefix="/api/v1")
 
     @application.get(
@@ -77,7 +94,33 @@ def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
             )
         return HealthResponse(status="ok", checks={"database": "ok"})
 
+    application.openapi_schema = _normalize_openapi_error_contract(application.openapi())
     return application
+
+
+def _normalize_openapi_error_contract(schema: dict[str, Any]) -> dict[str, Any]:
+    """让自动请求校验的 OpenAPI 响应与运行时统一错误处理器保持一致。"""
+    for path_item in schema.get("paths", {}).values():
+        if not isinstance(path_item, dict):
+            continue
+        for operation in path_item.values():
+            if not isinstance(operation, dict):
+                continue
+            response = operation.get("responses", {}).get("422")
+            if not isinstance(response, dict):
+                continue
+            content = response.get("content", {}).get("application/json")
+            if not isinstance(content, dict):
+                continue
+            response_schema = content.get("schema")
+            if response_schema == {"$ref": "#/components/schemas/HTTPValidationError"}:
+                content["schema"] = {"$ref": "#/components/schemas/ErrorResponse"}
+
+    schemas = schema.get("components", {}).get("schemas", {})
+    if isinstance(schemas, dict):
+        schemas.pop("HTTPValidationError", None)
+        schemas.pop("ValidationError", None)
+    return schema
 
 
 app = create_app()

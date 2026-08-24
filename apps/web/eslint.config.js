@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig([
   {
-    ignores: ['coverage', 'dist'],
+    ignores: ['coverage', 'dist', 'src/api/generated'],
   },
   {
     files: ['**/*.{ts,tsx}'],

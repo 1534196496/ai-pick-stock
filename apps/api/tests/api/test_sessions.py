@@ -149,6 +149,13 @@ def session_client(
     application.dependency_overrides[get_auth_repository] = lambda: repository
 
     with TestClient(application) as client:
+        client.get("/api/v1/health/live")
+        client.headers.update(
+            {
+                "Origin": "http://testserver",
+                "X-CSRF-Token": client.cookies["aipickstock_csrf"],
+            }
+        )
         yield client, repository
 
 
@@ -216,14 +223,13 @@ def test_invalid_credentials_do_not_reveal_account_existence(
         json={"email": "missing@example.com", "password": "wrong-long-password"},
     )
 
-    expected = {
-        "error": {
+    assert wrong_password.status_code == missing_user.status_code == 401
+    for response in (wrong_password, missing_user):
+        assert response.json()["error"] == {
             "code": "INVALID_CREDENTIALS",
             "message": "邮箱或密码错误",
+            "requestId": response.headers["X-Request-ID"],
         }
-    }
-    assert wrong_password.status_code == missing_user.status_code == 401
-    assert wrong_password.json() == missing_user.json() == expected
     assert len(repository.sessions_by_hash) == 0
 
 
@@ -262,6 +268,13 @@ def test_production_login_uses_host_bound_secure_cookie(
     application.dependency_overrides[get_auth_repository] = lambda: repository
 
     with TestClient(application, base_url="https://testserver") as client:
+        client.get("/api/v1/health/live")
+        client.headers.update(
+            {
+                "Origin": "https://testserver",
+                "X-CSRF-Token": client.cookies["__Host-aipickstock_csrf"],
+            }
+        )
         response = client.post(
             "/api/v1/auth/sessions",
             json={"email": "owner@example.com", "password": "a-correct-long-password"},

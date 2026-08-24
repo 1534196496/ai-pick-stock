@@ -82,6 +82,13 @@ def registration_client(
     application.dependency_overrides[get_auth_repository] = lambda: repository
 
     with TestClient(application) as client:
+        client.get("/api/v1/health/live")
+        client.headers.update(
+            {
+                "Origin": "http://testserver",
+                "X-CSRF-Token": client.cookies["aipickstock_csrf"],
+            }
+        )
         yield client, repository
 
 
@@ -145,6 +152,7 @@ def test_registration_validation_errors_use_stable_envelope(
                 else "密码长度必须为 12–128 个字符"
             ),
             "details": {"field": expected_field},
+            "requestId": response.headers["X-Request-ID"],
         }
     }
     assert repository.users == {}
@@ -172,5 +180,6 @@ def test_duplicate_email_returns_conflict_with_same_error_envelope(
             "code": "EMAIL_ALREADY_REGISTERED",
             "message": "该邮箱已注册",
             "details": {"field": "email"},
+            "requestId": duplicate.headers["X-Request-ID"],
         }
     }
