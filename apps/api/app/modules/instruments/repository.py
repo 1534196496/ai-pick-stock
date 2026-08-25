@@ -12,6 +12,8 @@ from app.modules.instruments.enums import AssetType, Exchange, Market
 from app.modules.instruments.models import Instrument
 from app.modules.market_data.providers.schemas import ProviderInstrument, StockQuoteRequest
 
+_UPSERT_BATCH_SIZE = 500
+
 
 class InstrumentRepository:
     """批量写入标准主数据并为行情任务返回活跃标的。"""
@@ -38,20 +40,22 @@ class InstrumentRepository:
             }
             for item in instruments
         ]
-        statement = insert(Instrument).values(values)
-        statement = statement.on_conflict_do_update(
-            constraint="uq_instruments_identity",
-            set_={
-                "exchange": statement.excluded.exchange,
-                "name": statement.excluded.name,
-                "currency": statement.excluded.currency,
-                "active": True,
-                "source": statement.excluded.source,
-                "source_updated_at": statement.excluded.source_updated_at,
-                "updated_at": func.now(),
-            },
-        )
-        await self._session.execute(statement)
+        for offset in range(0, len(values), _UPSERT_BATCH_SIZE):
+            batch = values[offset : offset + _UPSERT_BATCH_SIZE]
+            statement = insert(Instrument).values(batch)
+            statement = statement.on_conflict_do_update(
+                constraint="uq_instruments_identity",
+                set_={
+                    "exchange": statement.excluded.exchange,
+                    "name": statement.excluded.name,
+                    "currency": statement.excluded.currency,
+                    "active": True,
+                    "source": statement.excluded.source,
+                    "source_updated_at": statement.excluded.source_updated_at,
+                    "updated_at": func.now(),
+                },
+            )
+            await self._session.execute(statement)
         return len(values)
 
     async def list_stock_quote_requests(self) -> list[StockQuoteRequest]:
