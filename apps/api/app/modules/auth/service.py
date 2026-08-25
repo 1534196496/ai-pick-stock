@@ -86,6 +86,14 @@ class AuthRepositoryContract(Protocol):
         ...
 
 
+class RegistrationAccountContract(Protocol):
+    """限定注册用例可调用的默认投资账户初始化能力。"""
+
+    async def create_default_for_user(self, *, user_id: UUID) -> object:
+        """为新用户幂等创建默认账户。"""
+        ...
+
+
 class RegistrationError(Exception):
     """表示可安全返回给注册客户端的稳定领域错误。"""
 
@@ -123,10 +131,12 @@ class AuthService:
         self,
         repository: AuthRepositoryContract,
         password_manager: PasswordManager | None = None,
+        account_initializer: RegistrationAccountContract | None = None,
     ) -> None:
-        """注入持久化契约，并允许测试替换密码策略。"""
+        """注入认证持久化、密码策略和可选默认账户初始化契约。"""
         self._repository = repository
         self._password_manager = password_manager or PasswordManager()
+        self._account_initializer = account_initializer
 
     async def register(self, *, email: str, password: str, request_id: str) -> UserIdentity:
         """规范化输入并在一个请求事务中创建新用户与审计事件。"""
@@ -151,6 +161,11 @@ class AuthService:
                 code="EMAIL_ALREADY_REGISTERED",
                 message="该邮箱已注册",
                 field="email",
+            )
+
+        if self._account_initializer is not None:
+            await self._account_initializer.create_default_for_user(
+                user_id=created.identity.id,
             )
 
         await self._repository.record_security_event(
@@ -214,9 +229,7 @@ class AuthService:
                 await self._repository.record_security_event(
                     user_id=current_principal.identity.id,
                     event_type=SecurityEventType.SESSION_REVOKED,
-                    subject_hash=hash_sensitive_value(
-                        current_principal.identity.email_normalized
-                    ),
+                    subject_hash=hash_sensitive_value(current_principal.identity.email_normalized),
                     request_id=request_id,
                 )
 

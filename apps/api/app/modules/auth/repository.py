@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.domain import (
+    PasswordResetTokenRecord,
     SecurityEventRecord,
     SessionPrincipal,
     SessionRecord,
@@ -15,7 +16,7 @@ from app.modules.auth.domain import (
     UserIdentity,
 )
 from app.modules.auth.enums import SecurityEventType, UserStatus
-from app.modules.auth.models import SecurityEvent, Session, User
+from app.modules.auth.models import PasswordResetToken, SecurityEvent, Session, User
 
 
 class AuthRepository:
@@ -103,6 +104,45 @@ class AuthRepository:
         self._session.add(session_record)
         await self._session.flush()
         return self._to_session_record(session_record)
+
+    async def create_password_reset_token(
+        self,
+        *,
+        user_id: UUID,
+        token_hash: str,
+        created_at: datetime,
+        expires_at: datetime,
+    ) -> PasswordResetTokenRecord:
+        """保存重置令牌摘要，绝不接收邮件链接之外的数据。"""
+        token = PasswordResetToken(
+            user_id=user_id,
+            token_hash=token_hash,
+            created_at=created_at,
+            expires_at=expires_at,
+        )
+        self._session.add(token)
+        await self._session.flush()
+        return self._to_password_reset_token_record(token)
+
+    async def consume_password_reset_token(
+        self,
+        *,
+        token_hash: str,
+        used_at: datetime,
+    ) -> PasswordResetTokenRecord | None:
+        """原子标记尚未使用且未过期的令牌，竞争消费只有一个成功。"""
+        statement = (
+            update(PasswordResetToken)
+            .where(
+                PasswordResetToken.token_hash == token_hash,
+                PasswordResetToken.used_at.is_(None),
+                PasswordResetToken.expires_at > used_at,
+            )
+            .values(used_at=used_at)
+            .returning(PasswordResetToken)
+        )
+        token = await self._session.scalar(statement)
+        return self._to_password_reset_token_record(token) if token is not None else None
 
     async def get_session_principal(
         self,
@@ -201,6 +241,17 @@ class AuthRepository:
             created_at=session.created_at,
             expires_at=session.expires_at,
             revoked_at=session.revoked_at,
+        )
+
+    @staticmethod
+    def _to_password_reset_token_record(token: PasswordResetToken) -> PasswordResetTokenRecord:
+        """把重置 ORM 实例裁剪为不含令牌摘要的领域记录。"""
+        return PasswordResetTokenRecord(
+            id=token.id,
+            user_id=token.user_id,
+            created_at=token.created_at,
+            expires_at=token.expires_at,
+            used_at=token.used_at,
         )
 
     @staticmethod

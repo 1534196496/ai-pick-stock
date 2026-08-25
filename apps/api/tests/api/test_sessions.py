@@ -21,6 +21,10 @@ from app.modules.auth.enums import SecurityEventType, UserStatus
 from app.modules.auth.security import PasswordManager
 
 DUMMY_DATABASE_URL = "postgresql+psycopg://app:app@localhost:5432/app"
+SECURE_HEADERS = {
+    "Origin": "http://testserver",
+    "X-CSRF-Token": "csrf-test-token-1234567890",
+}
 
 
 class FakeSessionRepository:
@@ -148,7 +152,7 @@ def session_client(
     application = create_app()
     application.dependency_overrides[get_auth_repository] = lambda: repository
 
-    with TestClient(application) as client:
+    with TestClient(application, headers=SECURE_HEADERS) as client:
         yield client, repository
 
 
@@ -216,14 +220,15 @@ def test_invalid_credentials_do_not_reveal_account_existence(
         json={"email": "missing@example.com", "password": "wrong-long-password"},
     )
 
-    expected = {
-        "error": {
-            "code": "INVALID_CREDENTIALS",
-            "message": "邮箱或密码错误",
-        }
-    }
     assert wrong_password.status_code == missing_user.status_code == 401
-    assert wrong_password.json() == missing_user.json() == expected
+    for response in (wrong_password, missing_user):
+        assert response.json() == {
+            "error": {
+                "code": "INVALID_CREDENTIALS",
+                "message": "邮箱或密码错误",
+                "requestId": response.headers["X-Request-ID"],
+            }
+        }
     assert len(repository.sessions_by_hash) == 0
 
 
@@ -261,7 +266,14 @@ def test_production_login_uses_host_bound_secure_cookie(
     application = create_app()
     application.dependency_overrides[get_auth_repository] = lambda: repository
 
-    with TestClient(application, base_url="https://testserver") as client:
+    with TestClient(
+        application,
+        base_url="https://testserver",
+        headers={
+            "Origin": "https://testserver",
+            "X-CSRF-Token": "csrf-test-token-1234567890",
+        },
+    ) as client:
         response = client.post(
             "/api/v1/auth/sessions",
             json={"email": "owner@example.com", "password": "a-correct-long-password"},

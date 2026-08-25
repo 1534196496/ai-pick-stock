@@ -4,16 +4,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
-
+from app.api.schemas import ApiModel
 from app.modules.auth.enums import UserStatus
-
-
-class ApiModel(BaseModel):
-    """统一 API 字段使用 camelCase，同时允许服务端按 Python 字段名构造。"""
-
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class RegistrationRequest(ApiModel):
@@ -48,12 +40,32 @@ class SessionResponse(ApiModel):
     created_at: datetime
 
 
+class PasswordResetRequest(ApiModel):
+    """接收可能存在或不存在的注册邮箱。"""
+
+    email: str
+
+
+class PasswordResetRequestResponse(ApiModel):
+    """返回不泄露邮箱存在性的统一结果。"""
+
+    message: str
+
+
+class PasswordResetConfirmRequest(ApiModel):
+    """接收单次令牌与待校验的新密码。"""
+
+    token: str
+    new_password: str
+
+
 class ErrorDetail(ApiModel):
     """描述可由客户端稳定匹配的单项 API 错误。"""
 
     code: str
     message: str
     details: dict[str, Any] | None = None
+    request_id: str
 
 
 class ErrorResponse(ApiModel):

@@ -6,12 +6,16 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_auth_repository
+from app.api.dependencies import get_auth_repository, get_investment_account_repository
 from app.main import create_app
 from app.modules.auth.domain import SecurityEventRecord, UserCredentials, UserIdentity
 from app.modules.auth.enums import SecurityEventType, UserStatus
 
 DUMMY_DATABASE_URL = "postgresql+psycopg://app:app@localhost:5432/app"
+SECURE_HEADERS = {
+    "Origin": "http://testserver",
+    "X-CSRF-Token": "csrf-test-token-1234567890",
+}
 
 
 class FakeAuthRepository:
@@ -71,6 +75,19 @@ class FakeAuthRepository:
         return event
 
 
+class FakeAccountInitializer:
+    """记录注册流程是否创建默认投资账户。"""
+
+    def __init__(self) -> None:
+        """初始化用户 ID 记录。"""
+        self.user_ids: list[UUID] = []
+
+    async def create_default_for_user(self, *, user_id: UUID) -> object:
+        """记录默认账户初始化并返回占位对象。"""
+        self.user_ids.append(user_id)
+        return object()
+
+
 @pytest.fixture
 def registration_client(
     monkeypatch: pytest.MonkeyPatch,
@@ -79,9 +96,13 @@ def registration_client(
     monkeypatch.setenv("AIPICKSTOCK_DATABASE_URL", DUMMY_DATABASE_URL)
     repository = FakeAuthRepository()
     application = create_app()
+    account_initializer = FakeAccountInitializer()
     application.dependency_overrides[get_auth_repository] = lambda: repository
+    application.dependency_overrides[get_investment_account_repository] = lambda: (
+        account_initializer
+    )
 
-    with TestClient(application) as client:
+    with TestClient(application, headers=SECURE_HEADERS) as client:
         yield client, repository
 
 
@@ -145,6 +166,7 @@ def test_registration_validation_errors_use_stable_envelope(
                 else "密码长度必须为 12–128 个字符"
             ),
             "details": {"field": expected_field},
+            "requestId": response.headers["X-Request-ID"],
         }
     }
     assert repository.users == {}
@@ -172,5 +194,6 @@ def test_duplicate_email_returns_conflict_with_same_error_envelope(
             "code": "EMAIL_ALREADY_REGISTERED",
             "message": "该邮箱已注册",
             "details": {"field": "email"},
+            "requestId": duplicate.headers["X-Request-ID"],
         }
     }

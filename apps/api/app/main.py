@@ -11,7 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.core.database import DatabaseProbe, create_database_engine, probe_database
+from app.core.errors import install_error_handlers
+from app.core.middleware import (
+    AllowAllAuthenticationRateLimiter,
+    AuthenticationRateLimiter,
+    RequestSecurityMiddleware,
+)
+from app.modules.auth.mailer import SmtpPasswordResetMailer
 from app.modules.auth.router import router as auth_router
+from app.modules.portfolios.router import router as portfolio_router
 
 
 class HealthResponse(BaseModel):
@@ -21,7 +29,11 @@ class HealthResponse(BaseModel):
     checks: dict[str, Literal["ok", "unavailable"]] | None = None
 
 
-def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
+def create_app(
+    *,
+    database_probe: DatabaseProbe = probe_database,
+    authentication_rate_limiter: AuthenticationRateLimiter | None = None,
+) -> FastAPI:
     """创建 API 应用并注册不依赖外部资源的基础路由。"""
 
     @asynccontextmanager
@@ -35,6 +47,21 @@ def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
             engine,
             expire_on_commit=False,
         )
+        application.state.password_reset_mailer = (
+            SmtpPasswordResetMailer(
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                sender=settings.smtp_from_email,
+                public_web_url=settings.public_web_url,
+                username=settings.smtp_username,
+                password=settings.smtp_password,
+                starttls=settings.smtp_starttls,
+            )
+            if settings.smtp_configured
+            and settings.smtp_host is not None
+            and settings.smtp_from_email is not None
+            else None
+        )
         try:
             yield
         finally:
@@ -45,7 +72,15 @@ def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    install_error_handlers(application)
+    application.add_middleware(
+        RequestSecurityMiddleware,
+        authentication_rate_limiter=(
+            authentication_rate_limiter or AllowAllAuthenticationRateLimiter()
+        ),
+    )
     application.include_router(auth_router, prefix="/api/v1")
+    application.include_router(portfolio_router, prefix="/api/v1")
 
     @application.get(
         "/api/v1/health/live",
@@ -66,16 +101,21 @@ def create_app(*, database_probe: DatabaseProbe = probe_database) -> FastAPI:
     async def ready() -> HealthResponse | JSONResponse:
         """根据数据库探测结果返回可供流量入口使用的就绪状态。"""
         engine: AsyncEngine = application.state.database_engine
-        if not await database_probe(engine):
-            response = HealthResponse(
-                status="not_ready",
-                checks={"database": "unavailable"},
+        checks: dict[str, Literal["ok", "unavailable"]] = {
+            "database": "ok" if await database_probe(engine) else "unavailable"
+        }
+        settings: Settings = application.state.settings
+        if settings.environment == "production":
+            checks["smtp"] = (
+                "ok" if application.state.password_reset_mailer is not None else "unavailable"
             )
+        if "unavailable" in checks.values():
+            response = HealthResponse(status="not_ready", checks=checks)
             return JSONResponse(
                 status_code=503,
                 content=response.model_dump(mode="json", exclude_none=True),
             )
-        return HealthResponse(status="ok", checks={"database": "ok"})
+        return HealthResponse(status="ok", checks=checks)
 
     return application
 

@@ -37,15 +37,32 @@
       "T11",
       "T12",
       "T13",
-      "T14"
+      "T14",
+      "T15",
+      "T16",
+      "T17",
+      "T18",
+      "T19",
+      "T20",
+      "T21",
+      "T22",
+      "T23",
+      "T24",
+      "T25"
     ],
-    "current_task": "T15"
+    "current_task": "T26"
   },
   "operation_authority": {
     "production_parallel_deployment": true,
-    "domain_cutover": false,
+    "domain_cutover": true,
     "git_commit_merge_push": false
   },
   "license": "Apache-2.0",
-  "last_updated": "2026-08-24T20:13:08+08:00"
+  "last_updated": "2026-08-24T22:26:35+08:00",
+  "deployment_port_plan": {
+    "development_web": "127.0.0.1:18080",
+    "production_web": "127.0.0.1:8502",
+    "legacy_fallback": "127.0.0.1:8501",
+    "confirmed_at": "2026-08-24"
+  }
 }

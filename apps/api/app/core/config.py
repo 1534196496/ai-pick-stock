@@ -19,6 +19,21 @@ class Settings(BaseSettings):
     database_url: SecretStr = Field(min_length=1)
     environment: Literal["development", "test", "production"] = "development"
     session_lifetime_days: int = Field(default=30, ge=1, le=90)
+    public_web_url: str = "http://127.0.0.1:18080"
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from_email: str | None = None
+    smtp_starttls: bool = True
+    market_data_live_enabled: bool = False
+    stock_refresh_seconds: int = Field(default=60, ge=30, le=3600)
+    fund_estimate_enabled: bool = False
+
+    @property
+    def smtp_configured(self) -> bool:
+        """判断生产密码重置投递所需配置是否完整。"""
+        return self.smtp_host is not None and self.smtp_from_email is not None
 
     @field_validator("database_url")
     @classmethod

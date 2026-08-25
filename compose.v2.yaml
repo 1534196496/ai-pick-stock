@@ -85,6 +85,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
     image: ai-pick-stock-web:v2-local
     user: "101:101"
     restart: unless-stopped

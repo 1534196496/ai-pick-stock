@@ -64,6 +64,9 @@ jobs:
         run: npm run lint
       - name: 检查类型
         run: npm run typecheck
+      - name: 检查 OpenAPI Client 漂移
+        working-directory: .
+        run: ./scripts/check_openapi_client.sh
       - name: 运行测试
         run: npm run test -- --coverage
       - name: 构建前端

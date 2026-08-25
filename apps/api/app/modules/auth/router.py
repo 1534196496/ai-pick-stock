@@ -1,28 +1,37 @@
 """认证模块 HTTP 路由。"""
 
+import logging
 from datetime import timedelta
 from typing import Annotated
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from fastapi.responses import JSONResponse
 
 from app.api.dependencies import (
     get_auth_repository,
+    get_investment_account_repository,
     get_optional_session_principal,
+    get_password_reset_mailer,
     get_session_cookie_policy,
 )
+from app.core.errors import ApiError, request_id_from
 from app.modules.auth.domain import SessionPrincipal, UserIdentity
+from app.modules.auth.mailer import PasswordResetMailer
 from app.modules.auth.repository import AuthRepository
+from app.modules.auth.reset_service import PasswordResetError, PasswordResetService
 from app.modules.auth.schemas import (
-    ErrorDetail,
     ErrorResponse,
     LoginRequest,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
+    PasswordResetRequestResponse,
     RegistrationRequest,
     RegistrationResponse,
     SessionResponse,
 )
 from app.modules.auth.service import AuthenticationError, AuthService, RegistrationError
+from app.modules.portfolios.repository import InvestmentAccountRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -40,14 +49,18 @@ async def register(
     payload: RegistrationRequest,
     request: Request,
     repository: Annotated[AuthRepository, Depends(get_auth_repository)],
-) -> RegistrationResponse | JSONResponse:
+    account_repository: Annotated[
+        InvestmentAccountRepository,
+        Depends(get_investment_account_repository),
+    ],
+) -> RegistrationResponse:
     """创建邮箱密码用户，并保证响应不包含密码或摘要。"""
-    service = AuthService(repository)
+    service = AuthService(repository, account_initializer=account_repository)
     try:
         identity = await service.register(
             email=payload.email,
             password=payload.password,
-            request_id=_resolve_request_id(request),
+            request_id=request_id_from(request),
         )
     except RegistrationError as error:
         status_code = (
@@ -55,17 +68,12 @@ async def register(
             if error.code == "EMAIL_ALREADY_REGISTERED"
             else status.HTTP_422_UNPROCESSABLE_CONTENT
         )
-        response = ErrorResponse(
-            error=ErrorDetail(
-                code=error.code,
-                message=error.message,
-                details={"field": error.field},
-            )
-        )
-        return JSONResponse(
+        raise ApiError(
             status_code=status_code,
-            content=response.model_dump(mode="json", by_alias=True, exclude_none=True),
-        )
+            code=error.code,
+            message=error.message,
+            details={"field": error.field},
+        ) from error
 
     return RegistrationResponse(
         id=identity.id,
@@ -85,7 +93,7 @@ async def login(
     request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_auth_repository)],
-) -> SessionResponse | JSONResponse:
+) -> SessionResponse:
     """验证邮箱密码、轮换旧会话并写入环境匹配的安全 Cookie。"""
     policy = get_session_cookie_policy(request)
     service = AuthService(repository)
@@ -94,15 +102,15 @@ async def login(
             email=payload.email,
             password=payload.password,
             current_token=request.cookies.get(policy.name),
-            request_id=_resolve_request_id(request),
+            request_id=request_id_from(request),
             lifetime=timedelta(seconds=policy.max_age_seconds),
         )
     except AuthenticationError as error:
-        return _error_response(
+        raise ApiError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code=error.code,
             message=error.message,
-        )
+        ) from error
 
     response.set_cookie(
         key=policy.name,
@@ -119,10 +127,10 @@ async def login(
 )
 async def current_session(
     principal: Annotated[SessionPrincipal | None, Depends(get_optional_session_principal)],
-) -> SessionResponse | JSONResponse:
+) -> SessionResponse:
     """从服务端不透明会话恢复当前用户身份。"""
     if principal is None:
-        return _error_response(
+        raise ApiError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="AUTHENTICATION_REQUIRED",
             message="请先登录",
@@ -139,7 +147,7 @@ async def logout(
     policy = get_session_cookie_policy(request)
     await AuthService(repository).logout(
         token=request.cookies.get(policy.name),
-        request_id=_resolve_request_id(request),
+        request_id=request_id_from(request),
     )
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(
@@ -152,12 +160,57 @@ async def logout(
     return response
 
 
-def _resolve_request_id(request: Request) -> str:
-    """仅接受适合审计字段长度的 ASCII 请求标识，否则生成服务端值。"""
-    candidate = request.headers.get("X-Request-ID")
-    if candidate and candidate.isascii() and len(candidate) <= 64:
-        return candidate
-    return f"req_{uuid4().hex}"
+@router.post(
+    "/password-reset-requests",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=PasswordResetRequestResponse,
+)
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    request: Request,
+    repository: Annotated[AuthRepository, Depends(get_auth_repository)],
+    mailer: Annotated[PasswordResetMailer | None, Depends(get_password_reset_mailer)],
+) -> PasswordResetRequestResponse:
+    """统一接受重置请求，存在账户时通过适配器发送单次链接。"""
+    request_id = request_id_from(request)
+    delivery = await PasswordResetService(repository).request_reset(
+        email=payload.email,
+        request_id=request_id,
+    )
+    if delivery is not None and mailer is not None:
+        try:
+            await mailer.send_password_reset(email=delivery.email, token=delivery.token)
+        except Exception as error:
+            logger.error(
+                "密码重置邮件投递失败 request_id=%s exception_type=%s",
+                request_id,
+                type(error).__name__,
+            )
+    return PasswordResetRequestResponse(
+        message="如果该邮箱已注册，我们会发送密码重置邮件",
+    )
+
+
+@router.post("/password-resets", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(
+    payload: PasswordResetConfirmRequest,
+    request: Request,
+    repository: Annotated[AuthRepository, Depends(get_auth_repository)],
+) -> Response:
+    """消费单次令牌设置新密码，并撤销用户现有会话。"""
+    try:
+        await PasswordResetService(repository).reset_password(
+            token=payload.token,
+            new_password=payload.new_password,
+            request_id=request_id_from(request),
+        )
+    except PasswordResetError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code=error.code,
+            message=error.message,
+        ) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _session_response(identity: UserIdentity) -> SessionResponse:
@@ -167,13 +220,4 @@ def _session_response(identity: UserIdentity) -> SessionResponse:
         email=identity.email_normalized,
         status=identity.status,
         created_at=identity.created_at,
-    )
-
-
-def _error_response(*, status_code: int, code: str, message: str) -> JSONResponse:
-    """创建不含内部异常细节的统一认证错误响应。"""
-    response = ErrorResponse(error=ErrorDetail(code=code, message=message))
-    return JSONResponse(
-        status_code=status_code,
-        content=response.model_dump(mode="json", by_alias=True, exclude_none=True),
     )

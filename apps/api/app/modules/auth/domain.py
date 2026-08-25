@@ -55,3 +55,14 @@ class SecurityEventRecord:
     subject_hash: str
     request_id: str
     created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class PasswordResetTokenRecord:
+    """表示不暴露令牌摘要的密码重置状态。"""
+
+    id: UUID
+    user_id: UUID
+    created_at: datetime
+    expires_at: datetime
+    used_at: datetime | None
