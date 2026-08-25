@@ -1,5 +1,5 @@
-# V2 切换失败时把域名恢复到保留在 8501 的旧 Streamlit 服务。
+# V2 切换失败时把域名恢复到保留在 8502 的旧 Streamlit 服务。
 aipickstock.duckdns.org {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:8501
+    reverse_proxy 127.0.0.1:8502
 }

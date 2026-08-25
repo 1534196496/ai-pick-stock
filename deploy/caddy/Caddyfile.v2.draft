@@ -1,5 +1,5 @@
 # 仅用于切换审批后的 V2 路由，不应直接覆盖服务器生效配置。
 aipickstock.duckdns.org {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:8502
+    reverse_proxy 127.0.0.1:18080
 }
