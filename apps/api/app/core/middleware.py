@@ -1,7 +1,12 @@
 """请求标识、同源 CSRF 防护和认证限流中间件。"""
 
 import hashlib
+from asyncio import Lock
+from collections import OrderedDict, deque
 from dataclasses import dataclass
+from ipaddress import ip_address
+from math import ceil
+from time import monotonic
 from typing import Protocol, runtime_checkable
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -45,6 +50,52 @@ class AllowAllAuthenticationRateLimiter:
 
     async def check(self, *, scope: str, client_key: str) -> RateLimitDecision | None:
         """允许请求通过，同时保持调用端与后续实现解耦。"""
+        return None
+
+
+class InMemoryAuthenticationRateLimiter:
+    """为单进程部署限制每个去敏客户端的认证请求频率。"""
+
+    def __init__(
+        self,
+        *,
+        max_attempts: int = 20,
+        window_seconds: int = 300,
+        max_clients: int = 10_000,
+    ) -> None:
+        """设置滑动窗口上限和有界客户端容量。"""
+        if max_attempts < 1 or window_seconds < 1 or max_clients < 1:
+            raise ValueError("限流参数必须为正整数")
+        self._max_attempts = max_attempts
+        self._window_seconds = window_seconds
+        self._max_clients = max_clients
+        self._attempts: OrderedDict[tuple[str, str], deque[float]] = OrderedDict()
+        self._lock = Lock()
+
+    async def check(self, *, scope: str, client_key: str) -> RateLimitDecision | None:
+        """在并发安全的滑动窗口内记录请求，超限时返回剩余等待秒数。"""
+        now = monotonic()
+        key = (scope, client_key)
+        async with self._lock:
+            attempts = self._attempts.get(key)
+            if attempts is None:
+                if len(self._attempts) >= self._max_clients:
+                    self._attempts.popitem(last=False)
+                attempts = deque()
+                self._attempts[key] = attempts
+            else:
+                self._attempts.move_to_end(key)
+            cutoff = now - self._window_seconds
+            while attempts and attempts[0] <= cutoff:
+                attempts.popleft()
+            if len(attempts) >= self._max_attempts:
+                return RateLimitDecision(
+                    retry_after_seconds=max(
+                        1,
+                        ceil(attempts[0] + self._window_seconds - now),
+                    )
+                )
+            attempts.append(now)
         return None
 
 
@@ -158,5 +209,11 @@ def _is_same_origin(request: Request, origin: str) -> bool:
 
 def _client_key(request: Request) -> str:
     """对连接地址做不可逆摘要，避免限流存储保留原始 IP。"""
-    host = request.client.host if request.client is not None else "unknown"
+    forwarded = request.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
+    try:
+        host = str(ip_address(forwarded)) if forwarded else ""
+    except ValueError:
+        host = ""
+    if not host:
+        host = request.client.host if request.client is not None else "unknown"
     return hashlib.sha256(host.encode("utf-8")).hexdigest()

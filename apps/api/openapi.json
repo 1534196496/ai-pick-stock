@@ -1,6 +1,136 @@
 {
   "components": {
     "schemas": {
+      "AssetType": {
+        "description": "区分一期支持的股票与基金。",
+        "enum": [
+          "STOCK",
+          "FUND"
+        ],
+        "title": "AssetType",
+        "type": "string"
+      },
+      "CostInputMode": {
+        "description": "表示用户直接输入总成本或平均成本。",
+        "enum": [
+          "TOTAL_COST",
+          "AVERAGE_COST"
+        ],
+        "title": "CostInputMode",
+        "type": "string"
+      },
+      "CreateFundAmountPositionRequest": {
+        "description": "接收基金当前金额和可正可负的持有收益。",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "currentValue": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Currentvalue",
+            "type": "string"
+          },
+          "holdingProfit": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Holdingprofit",
+            "type": "string"
+          },
+          "inputDate": {
+            "format": "date",
+            "title": "Inputdate",
+            "type": "string"
+          },
+          "inputMode": {
+            "const": "FUND_AMOUNT",
+            "title": "Inputmode",
+            "type": "string"
+          },
+          "instrumentId": {
+            "format": "uuid",
+            "title": "Instrumentid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inputMode",
+          "accountId",
+          "instrumentId",
+          "inputDate",
+          "currentValue",
+          "holdingProfit"
+        ],
+        "title": "CreateFundAmountPositionRequest",
+        "type": "object"
+      },
+      "CreateFundSharesPositionRequest": {
+        "description": "接收基金份额及总成本或平均成本二选一输入。",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "averageCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagecost"
+          },
+          "costInputMode": {
+            "$ref": "#/components/schemas/CostInputMode"
+          },
+          "inputDate": {
+            "format": "date",
+            "title": "Inputdate",
+            "type": "string"
+          },
+          "inputMode": {
+            "const": "FUND_SHARES",
+            "title": "Inputmode",
+            "type": "string"
+          },
+          "instrumentId": {
+            "format": "uuid",
+            "title": "Instrumentid",
+            "type": "string"
+          },
+          "quantity": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "totalCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalcost"
+          }
+        },
+        "required": [
+          "inputMode",
+          "accountId",
+          "instrumentId",
+          "inputDate",
+          "quantity",
+          "costInputMode"
+        ],
+        "title": "CreateFundSharesPositionRequest",
+        "type": "object"
+      },
       "CreateInvestmentAccountRequest": {
         "description": "接收待规范化的新账户名称。",
         "properties": {
@@ -14,6 +144,130 @@
         ],
         "title": "CreateInvestmentAccountRequest",
         "type": "object"
+      },
+      "CreateStockPositionRequest": {
+        "description": "接收股票数量及总成本或平均成本二选一输入。",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "averageCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagecost"
+          },
+          "costInputMode": {
+            "$ref": "#/components/schemas/CostInputMode"
+          },
+          "inputDate": {
+            "format": "date",
+            "title": "Inputdate",
+            "type": "string"
+          },
+          "inputMode": {
+            "const": "STOCK_SHARES",
+            "title": "Inputmode",
+            "type": "string"
+          },
+          "instrumentId": {
+            "format": "uuid",
+            "title": "Instrumentid",
+            "type": "string"
+          },
+          "quantity": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "totalCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalcost"
+          }
+        },
+        "required": [
+          "inputMode",
+          "accountId",
+          "instrumentId",
+          "inputDate",
+          "quantity",
+          "costInputMode"
+        ],
+        "title": "CreateStockPositionRequest",
+        "type": "object"
+      },
+      "CreateWatchlistGroupRequest": {
+        "description": "接收待规范化的新自选分组名称。",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateWatchlistGroupRequest",
+        "type": "object"
+      },
+      "CreateWatchlistItemRequest": {
+        "description": "接收待加入分组的标的和可选备注。",
+        "properties": {
+          "instrumentId": {
+            "format": "uuid",
+            "title": "Instrumentid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "instrumentId"
+        ],
+        "title": "CreateWatchlistItemRequest",
+        "type": "object"
+      },
+      "Currency": {
+        "description": "表示权威财务值的币种。",
+        "enum": [
+          "CNY"
+        ],
+        "title": "Currency",
+        "type": "string"
+      },
+      "DataFreshness": {
+        "description": "表示本地数据是否仍在约定的新鲜时间窗口内。",
+        "enum": [
+          "FRESH",
+          "STALE"
+        ],
+        "title": "DataFreshness",
+        "type": "string"
       },
       "ErrorDetail": {
         "description": "描述可由客户端稳定匹配的单项 API 错误。",
@@ -64,6 +318,42 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EstimatedFundValuationResponse": {
+        "description": "返回明确标记且不进入组合汇总的基金盘中估算。",
+        "properties": {
+          "holdingProfit": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Holdingprofit",
+            "type": "string"
+          },
+          "marketValue": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Marketvalue",
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/LatestPriceResponse"
+          }
+        },
+        "required": [
+          "price",
+          "marketValue",
+          "holdingProfit"
+        ],
+        "title": "EstimatedFundValuationResponse",
+        "type": "object"
+      },
+      "Exchange": {
+        "description": "区分 A 股交易所与中国公募基金登记域。",
+        "enum": [
+          "SSE",
+          "SZSE",
+          "BSE",
+          "FUND_CN"
+        ],
+        "title": "Exchange",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -111,6 +401,111 @@
           "status"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "InstrumentListResponse": {
+        "description": "返回稳定分页的资产搜索结果。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "title": "InstrumentListResponse",
+        "type": "object"
+      },
+      "InstrumentResponse": {
+        "description": "返回一期资产主数据和互不混淆的最新价格列表。",
+        "properties": {
+          "assetType": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "exchange": {
+            "$ref": "#/components/schemas/Exchange"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latestPrices": {
+            "items": {
+              "$ref": "#/components/schemas/LatestPriceResponse"
+            },
+            "title": "Latestprices",
+            "type": "array"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "sourceUpdatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourceupdatedat"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "assetType",
+          "market",
+          "exchange",
+          "ticker",
+          "name",
+          "currency",
+          "source",
+          "sourceUpdatedAt",
+          "updatedAt",
+          "latestPrices"
+        ],
+        "title": "InstrumentResponse",
         "type": "object"
       },
       "InvestmentAccountListResponse": {
@@ -192,6 +587,66 @@
         "title": "InvestmentAccountResponse",
         "type": "object"
       },
+      "LatestPriceResponse": {
+        "description": "返回一种明确口径的最新价格及其业务时间和抓取时间。",
+        "properties": {
+          "asOfAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asofat"
+          },
+          "asOfDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asofdate"
+          },
+          "fetchedAt": {
+            "format": "date-time",
+            "title": "Fetchedat",
+            "type": "string"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/DataFreshness"
+          },
+          "priceType": {
+            "$ref": "#/components/schemas/PriceType"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "priceType",
+          "value",
+          "asOfDate",
+          "asOfAt",
+          "fetchedAt",
+          "source",
+          "freshness"
+        ],
+        "title": "LatestPriceResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "description": "接收登录邮箱和密码，并由服务统一处理错误以防账户枚举。",
         "properties": {
@@ -209,6 +664,92 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "Market": {
+        "description": "表示资产所属市场，允许后续只新增枚举值。",
+        "enum": [
+          "CN"
+        ],
+        "title": "Market",
+        "type": "string"
+      },
+      "MarketDataJobStatusResponse": {
+        "description": "返回一种任务最近运行的计数、时间和新鲜度。",
+        "properties": {
+          "failedCount": {
+            "title": "Failedcount",
+            "type": "integer"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/DataFreshness"
+          },
+          "jobType": {
+            "$ref": "#/components/schemas/SyncJobType"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "title": "Startedat",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SyncStatus"
+          },
+          "succeededCount": {
+            "title": "Succeededcount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "jobType",
+          "status",
+          "source",
+          "startedAt",
+          "finishedAt",
+          "succeededCount",
+          "failedCount",
+          "freshness"
+        ],
+        "title": "MarketDataJobStatusResponse",
+        "type": "object"
+      },
+      "MarketDataStatusResponse": {
+        "description": "返回本地生成时间和已有同步任务的最近状态。",
+        "properties": {
+          "generatedAt": {
+            "format": "date-time",
+            "title": "Generatedat",
+            "type": "string"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/MarketDataJobStatusResponse"
+            },
+            "title": "Jobs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "jobs"
+        ],
+        "title": "MarketDataStatusResponse",
         "type": "object"
       },
       "PasswordResetConfirmRequest": {
@@ -257,6 +798,442 @@
         ],
         "title": "PasswordResetRequestResponse",
         "type": "object"
+      },
+      "PositionInputMode": {
+        "description": "区分股票份额、基金金额和基金份额三种录入语义。",
+        "enum": [
+          "STOCK_SHARES",
+          "FUND_AMOUNT",
+          "FUND_SHARES"
+        ],
+        "title": "PositionInputMode",
+        "type": "string"
+      },
+      "PositionInstrumentResponse": {
+        "description": "返回持仓列表稳定需要的资产身份。",
+        "properties": {
+          "assetType": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "exchange": {
+            "$ref": "#/components/schemas/Exchange"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "assetType",
+          "market",
+          "exchange",
+          "ticker",
+          "name",
+          "currency"
+        ],
+        "title": "PositionInstrumentResponse",
+        "type": "object"
+      },
+      "PositionListResponse": {
+        "description": "返回当前用户持仓的稳定分页列表。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PositionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "title": "PositionListResponse",
+        "type": "object"
+      },
+      "PositionResponse": {
+        "description": "返回原始输入、规范化值、资产身份和乐观锁版本。",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "averageCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagecost"
+          },
+          "costInputMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CostInputMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "estimatedValuation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EstimatedFundValuationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inputAverageCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputaveragecost"
+          },
+          "inputCurrentValue": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputcurrentvalue"
+          },
+          "inputDate": {
+            "format": "date",
+            "title": "Inputdate",
+            "type": "string"
+          },
+          "inputHoldingProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputholdingprofit"
+          },
+          "inputMode": {
+            "$ref": "#/components/schemas/PositionInputMode"
+          },
+          "inputQuantity": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputquantity"
+          },
+          "inputTotalCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputtotalcost"
+          },
+          "instrument": {
+            "$ref": "#/components/schemas/PositionInstrumentResponse"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "quantityBasisNav": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantitybasisnav"
+          },
+          "quantityBasisNavDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantitybasisnavdate"
+          },
+          "quantityEstimated": {
+            "title": "Quantityestimated",
+            "type": "boolean"
+          },
+          "totalCost": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Totalcost",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          },
+          "valuation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionValuationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "accountId",
+          "instrument",
+          "inputMode",
+          "costInputMode",
+          "inputDate",
+          "inputQuantity",
+          "inputTotalCost",
+          "inputAverageCost",
+          "inputCurrentValue",
+          "inputHoldingProfit",
+          "quantity",
+          "totalCost",
+          "averageCost",
+          "quantityEstimated",
+          "quantityBasisNav",
+          "quantityBasisNavDate",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PositionResponse",
+        "type": "object"
+      },
+      "PositionSummaryResponse": {
+        "description": "返回组合成本、价格完整性和可选权威估值汇总。",
+        "properties": {
+          "accountId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountid"
+          },
+          "calculatedAt": {
+            "format": "date-time",
+            "title": "Calculatedat",
+            "type": "string"
+          },
+          "holdingProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holdingprofit"
+          },
+          "marketValue": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marketvalue"
+          },
+          "missingPricePositionIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Missingpricepositionids",
+            "type": "array"
+          },
+          "positionCount": {
+            "title": "Positioncount",
+            "type": "integer"
+          },
+          "pricedPositionCount": {
+            "title": "Pricedpositioncount",
+            "type": "integer"
+          },
+          "returnRate": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Returnrate"
+          },
+          "stalePositionCount": {
+            "title": "Stalepositioncount",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ValuationStatus"
+          },
+          "totalCost": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Totalcost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountId",
+          "status",
+          "positionCount",
+          "pricedPositionCount",
+          "stalePositionCount",
+          "missingPricePositionIds",
+          "totalCost",
+          "marketValue",
+          "holdingProfit",
+          "returnRate",
+          "calculatedAt"
+        ],
+        "title": "PositionSummaryResponse",
+        "type": "object"
+      },
+      "PositionValuationResponse": {
+        "description": "返回单只持仓使用的权威价格及精确估值。",
+        "properties": {
+          "holdingProfit": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Holdingprofit",
+            "type": "string"
+          },
+          "marketValue": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Marketvalue",
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/LatestPriceResponse"
+          },
+          "returnRate": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Returnrate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "price",
+          "marketValue",
+          "holdingProfit",
+          "returnRate"
+        ],
+        "title": "PositionValuationResponse",
+        "type": "object"
+      },
+      "PriceType": {
+        "description": "严格区分股票价格、官方单位净值和盘中估算净值。",
+        "enum": [
+          "STOCK_LAST",
+          "FUND_OFFICIAL_NAV",
+          "FUND_ESTIMATED_NAV"
+        ],
+        "title": "PriceType",
+        "type": "string"
       },
       "RegistrationRequest": {
         "description": "接收待由认证服务完整校验的邮箱和密码原文。",
@@ -337,6 +1314,188 @@
         "title": "SessionResponse",
         "type": "object"
       },
+      "SyncJobType": {
+        "description": "标识 Worker 执行的独立同步任务。",
+        "enum": [
+          "INSTRUMENT_MASTER",
+          "STOCK_PRICES",
+          "FUND_OFFICIAL_NAV",
+          "FUND_ESTIMATED_NAV"
+        ],
+        "title": "SyncJobType",
+        "type": "string"
+      },
+      "SyncStatus": {
+        "description": "表示同步任务完整生命周期。",
+        "enum": [
+          "RUNNING",
+          "SUCCEEDED",
+          "PARTIAL",
+          "FAILED"
+        ],
+        "title": "SyncStatus",
+        "type": "string"
+      },
+      "UpdateFundAmountPositionRequest": {
+        "description": "接收带版本号的基金金额模式部分更新。",
+        "properties": {
+          "accountId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountid"
+          },
+          "currentValue": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currentvalue"
+          },
+          "holdingProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holdingprofit"
+          },
+          "inputDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputdate"
+          },
+          "inputMode": {
+            "const": "FUND_AMOUNT",
+            "title": "Inputmode",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inputMode",
+          "version"
+        ],
+        "title": "UpdateFundAmountPositionRequest",
+        "type": "object"
+      },
+      "UpdateFundSharesPositionRequest": {
+        "description": "接收带版本号的基金份额模式部分更新。",
+        "properties": {
+          "accountId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountid"
+          },
+          "averageCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagecost"
+          },
+          "costInputMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CostInputMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inputDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputdate"
+          },
+          "inputMode": {
+            "const": "FUND_SHARES",
+            "title": "Inputmode",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "totalCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalcost"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inputMode",
+          "version"
+        ],
+        "title": "UpdateFundSharesPositionRequest",
+        "type": "object"
+      },
       "UpdateInvestmentAccountRequest": {
         "description": "使用版本号选择性修改名称或排序。",
         "properties": {
@@ -373,6 +1532,185 @@
           "version"
         ],
         "title": "UpdateInvestmentAccountRequest",
+        "type": "object"
+      },
+      "UpdateStockPositionRequest": {
+        "description": "接收带版本号的股票持仓部分更新。",
+        "properties": {
+          "accountId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountid"
+          },
+          "averageCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagecost"
+          },
+          "costInputMode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CostInputMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inputDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputdate"
+          },
+          "inputMode": {
+            "const": "STOCK_SHARES",
+            "title": "Inputmode",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "totalCost": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalcost"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inputMode",
+          "version"
+        ],
+        "title": "UpdateStockPositionRequest",
+        "type": "object"
+      },
+      "UpdateWatchlistGroupRequest": {
+        "description": "使用版本号选择性修改分组名称或排序。",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "UpdateWatchlistGroupRequest",
+        "type": "object"
+      },
+      "UpdateWatchlistItemRequest": {
+        "description": "使用版本号选择性移动、修改备注或调整排序。",
+        "properties": {
+          "groupId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Groupid"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "UpdateWatchlistItemRequest",
         "type": "object"
       },
       "UserStatus": {
@@ -422,6 +1760,177 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValuationStatus": {
+        "description": "表示组合估值是否完整、陈旧或为空。",
+        "enum": [
+          "COMPLETE",
+          "STALE",
+          "INCOMPLETE",
+          "EMPTY"
+        ],
+        "title": "ValuationStatus",
+        "type": "string"
+      },
+      "WatchlistGroupListResponse": {
+        "description": "返回当前用户全部自选分组。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistGroupResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "WatchlistGroupListResponse",
+        "type": "object"
+      },
+      "WatchlistGroupResponse": {
+        "description": "返回用户可见的自选分组及标的数量。",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isDefault": {
+            "title": "Isdefault",
+            "type": "boolean"
+          },
+          "itemCount": {
+            "title": "Itemcount",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sortOrder": {
+            "title": "Sortorder",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isDefault",
+          "sortOrder",
+          "itemCount",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "WatchlistGroupResponse",
+        "type": "object"
+      },
+      "WatchlistItemListResponse": {
+        "description": "返回指定分组的稳定分页观察标的列表。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "title": "WatchlistItemListResponse",
+        "type": "object"
+      },
+      "WatchlistItemResponse": {
+        "description": "返回观察标的、所属分组、备注、行情和乐观锁版本。",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "groupId": {
+            "format": "uuid",
+            "title": "Groupid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument": {
+            "$ref": "#/components/schemas/InstrumentResponse"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "sortOrder": {
+            "title": "Sortorder",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "groupId",
+          "instrument",
+          "note",
+          "sortOrder",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "WatchlistItemResponse",
         "type": "object"
       }
     }
@@ -712,6 +2221,140 @@
         ]
       }
     },
+    "/api/v1/instruments": {
+      "get": {
+        "description": "按代码或名称分页搜索当前一期支持的股票和基金。",
+        "operationId": "search_instruments_api_v1_instruments_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assetType",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AssetType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assettype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Instruments",
+        "tags": [
+          "instruments"
+        ]
+      }
+    },
+    "/api/v1/instruments/{instrument_id}": {
+      "get": {
+        "description": "返回指定一期资产及各价格口径的最新本地快照。",
+        "operationId": "get_instrument_api_v1_instruments__instrument_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instrument_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Instrument Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Instrument",
+        "tags": [
+          "instruments"
+        ]
+      }
+    },
     "/api/v1/investment-accounts": {
       "get": {
         "description": "分页返回当前会话用户的投资账户。",
@@ -937,6 +2580,805 @@
         "summary": "Update Investment Account",
         "tags": [
           "investment-accounts"
+        ]
+      }
+    },
+    "/api/v1/market-data/status": {
+      "get": {
+        "description": "返回每种已运行同步任务的最近状态，不在请求内访问行情源。",
+        "operationId": "get_market_data_status_api_v1_market_data_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketDataStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Market Data Status",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/position-summary": {
+      "get": {
+        "description": "返回全部账户或指定账户的权威口径持仓汇总。",
+        "operationId": "get_position_summary_api_v1_position_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accountid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Position Summary",
+        "tags": [
+          "positions"
+        ]
+      }
+    },
+    "/api/v1/positions": {
+      "get": {
+        "description": "分页返回当前用户全部或指定账户的持仓。",
+        "operationId": "list_positions_api_v1_positions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accountid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Positions",
+        "tags": [
+          "positions"
+        ]
+      },
+      "post": {
+        "description": "按录入模式为当前用户账户创建唯一股票或基金持仓。",
+        "operationId": "create_position_api_v1_positions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "FUND_AMOUNT": "#/components/schemas/CreateFundAmountPositionRequest",
+                    "FUND_SHARES": "#/components/schemas/CreateFundSharesPositionRequest",
+                    "STOCK_SHARES": "#/components/schemas/CreateStockPositionRequest"
+                  },
+                  "propertyName": "inputMode"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateStockPositionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateFundAmountPositionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateFundSharesPositionRequest"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Position",
+        "tags": [
+          "positions"
+        ]
+      }
+    },
+    "/api/v1/positions/{position_id}": {
+      "delete": {
+        "description": "删除当前用户指定持仓。",
+        "operationId": "delete_position_api_v1_positions__position_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "position_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Position Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Position",
+        "tags": [
+          "positions"
+        ]
+      },
+      "get": {
+        "description": "返回当前用户拥有的指定持仓。",
+        "operationId": "get_position_api_v1_positions__position_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "position_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Position Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Position",
+        "tags": [
+          "positions"
+        ]
+      },
+      "patch": {
+        "description": "按录入模式和版本部分修改持仓或移动账户。",
+        "operationId": "update_position_api_v1_positions__position_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "position_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Position Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "FUND_AMOUNT": "#/components/schemas/UpdateFundAmountPositionRequest",
+                    "FUND_SHARES": "#/components/schemas/UpdateFundSharesPositionRequest",
+                    "STOCK_SHARES": "#/components/schemas/UpdateStockPositionRequest"
+                  },
+                  "propertyName": "inputMode"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateStockPositionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateFundAmountPositionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateFundSharesPositionRequest"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Position",
+        "tags": [
+          "positions"
+        ]
+      }
+    },
+    "/api/v1/watchlist-groups": {
+      "get": {
+        "description": "返回当前用户全部自选分组及标的数量。",
+        "operationId": "list_watchlist_groups_api_v1_watchlist_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistGroupListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Watchlist Groups",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "post": {
+        "description": "为当前用户创建名称唯一的普通自选分组。",
+        "operationId": "create_watchlist_group_api_v1_watchlist_groups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWatchlistGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistGroupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Watchlist Group",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/v1/watchlist-groups/{group_id}": {
+      "delete": {
+        "description": "删除当前用户的普通空分组。",
+        "operationId": "delete_watchlist_group_api_v1_watchlist_groups__group_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Watchlist Group",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "get": {
+        "description": "返回当前用户拥有的指定自选分组。",
+        "operationId": "get_watchlist_group_api_v1_watchlist_groups__group_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistGroupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Watchlist Group",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "patch": {
+        "description": "按版本重命名或调整当前用户自选分组排序。",
+        "operationId": "update_watchlist_group_api_v1_watchlist_groups__group_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWatchlistGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistGroupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Watchlist Group",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/v1/watchlist-groups/{group_id}/items": {
+      "get": {
+        "description": "分页返回当前用户指定分组的观察标的与本地行情。",
+        "operationId": "list_watchlist_items_api_v1_watchlist_groups__group_id__items_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistItemListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Watchlist Items",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "post": {
+        "description": "向当前用户指定分组添加股票或基金。",
+        "operationId": "create_watchlist_item_api_v1_watchlist_groups__group_id__items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWatchlistItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistItemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Watchlist Item",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/v1/watchlist-items/{item_id}": {
+      "delete": {
+        "description": "删除当前用户指定观察标的。",
+        "operationId": "delete_watchlist_item_api_v1_watchlist_items__item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Watchlist Item",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "get": {
+        "description": "返回当前用户拥有的指定观察标的。",
+        "operationId": "get_watchlist_item_api_v1_watchlist_items__item_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistItemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Watchlist Item",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "patch": {
+        "description": "按版本移动观察标的、修改备注或调整排序。",
+        "operationId": "update_watchlist_item_api_v1_watchlist_items__item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWatchlistItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistItemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Watchlist Item",
+        "tags": [
+          "watchlists"
         ]
       }
     }

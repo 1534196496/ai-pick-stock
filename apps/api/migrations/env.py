@@ -8,6 +8,7 @@ from app.modules.auth import models as auth_models
 from app.modules.instruments import models as instrument_models
 from app.modules.market_data import models as market_models
 from app.modules.portfolios import models as portfolio_models
+from app.modules.watchlists import models as watchlist_models
 
 config = context.config
 settings = Settings()
@@ -17,8 +18,11 @@ config.set_main_option(
 )
 target_metadata = auth_models.User.metadata
 assert portfolio_models.InvestmentAccount.metadata is target_metadata
+assert portfolio_models.Position.metadata is target_metadata
 assert instrument_models.Instrument.metadata is target_metadata
 assert market_models.InstrumentPrice.metadata is target_metadata
+assert watchlist_models.WatchlistGroup.metadata is target_metadata
+assert watchlist_models.WatchlistItem.metadata is target_metadata
 
 
 def run_migrations_offline() -> None:

@@ -148,6 +148,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/instruments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Instruments
+         * @description 按代码或名称分页搜索当前一期支持的股票和基金。
+         */
+        get: operations["search_instruments_api_v1_instruments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instruments/{instrument_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Instrument
+         * @description 返回指定一期资产及各价格口径的最新本地快照。
+         */
+        get: operations["get_instrument_api_v1_instruments__instrument_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investment-accounts": {
         parameters: {
             query?: never;
@@ -200,10 +240,281 @@ export interface paths {
         patch: operations["update_investment_account_api_v1_investment_accounts__account_id__patch"];
         trace?: never;
     };
+    "/api/v1/market-data/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Market Data Status
+         * @description 返回每种已运行同步任务的最近状态，不在请求内访问行情源。
+         */
+        get: operations["get_market_data_status_api_v1_market_data_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/position-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Position Summary
+         * @description 返回全部账户或指定账户的权威口径持仓汇总。
+         */
+        get: operations["get_position_summary_api_v1_position_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Positions
+         * @description 分页返回当前用户全部或指定账户的持仓。
+         */
+        get: operations["list_positions_api_v1_positions_get"];
+        put?: never;
+        /**
+         * Create Position
+         * @description 按录入模式为当前用户账户创建唯一股票或基金持仓。
+         */
+        post: operations["create_position_api_v1_positions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/positions/{position_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Position
+         * @description 返回当前用户拥有的指定持仓。
+         */
+        get: operations["get_position_api_v1_positions__position_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Position
+         * @description 删除当前用户指定持仓。
+         */
+        delete: operations["delete_position_api_v1_positions__position_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Position
+         * @description 按录入模式和版本部分修改持仓或移动账户。
+         */
+        patch: operations["update_position_api_v1_positions__position_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/watchlist-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Watchlist Groups
+         * @description 返回当前用户全部自选分组及标的数量。
+         */
+        get: operations["list_watchlist_groups_api_v1_watchlist_groups_get"];
+        put?: never;
+        /**
+         * Create Watchlist Group
+         * @description 为当前用户创建名称唯一的普通自选分组。
+         */
+        post: operations["create_watchlist_group_api_v1_watchlist_groups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watchlist-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Watchlist Group
+         * @description 返回当前用户拥有的指定自选分组。
+         */
+        get: operations["get_watchlist_group_api_v1_watchlist_groups__group_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Watchlist Group
+         * @description 删除当前用户的普通空分组。
+         */
+        delete: operations["delete_watchlist_group_api_v1_watchlist_groups__group_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Watchlist Group
+         * @description 按版本重命名或调整当前用户自选分组排序。
+         */
+        patch: operations["update_watchlist_group_api_v1_watchlist_groups__group_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/watchlist-groups/{group_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Watchlist Items
+         * @description 分页返回当前用户指定分组的观察标的与本地行情。
+         */
+        get: operations["list_watchlist_items_api_v1_watchlist_groups__group_id__items_get"];
+        put?: never;
+        /**
+         * Create Watchlist Item
+         * @description 向当前用户指定分组添加股票或基金。
+         */
+        post: operations["create_watchlist_item_api_v1_watchlist_groups__group_id__items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watchlist-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Watchlist Item
+         * @description 返回当前用户拥有的指定观察标的。
+         */
+        get: operations["get_watchlist_item_api_v1_watchlist_items__item_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Watchlist Item
+         * @description 删除当前用户指定观察标的。
+         */
+        delete: operations["delete_watchlist_item_api_v1_watchlist_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Watchlist Item
+         * @description 按版本移动观察标的、修改备注或调整排序。
+         */
+        patch: operations["update_watchlist_item_api_v1_watchlist_items__item_id__patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AssetType
+         * @description 区分一期支持的股票与基金。
+         * @enum {string}
+         */
+        AssetType: "STOCK" | "FUND";
+        /**
+         * CostInputMode
+         * @description 表示用户直接输入总成本或平均成本。
+         * @enum {string}
+         */
+        CostInputMode: "TOTAL_COST" | "AVERAGE_COST";
+        /**
+         * CreateFundAmountPositionRequest
+         * @description 接收基金当前金额和可正可负的持有收益。
+         */
+        CreateFundAmountPositionRequest: {
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Currentvalue */
+            currentValue: string;
+            /** Holdingprofit */
+            holdingProfit: string;
+            /**
+             * Inputdate
+             * Format: date
+             */
+            inputDate: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            inputMode: "FUND_AMOUNT";
+            /**
+             * Instrumentid
+             * Format: uuid
+             */
+            instrumentId: string;
+        };
+        /**
+         * CreateFundSharesPositionRequest
+         * @description 接收基金份额及总成本或平均成本二选一输入。
+         */
+        CreateFundSharesPositionRequest: {
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Averagecost */
+            averageCost?: string | null;
+            costInputMode: components["schemas"]["CostInputMode"];
+            /**
+             * Inputdate
+             * Format: date
+             */
+            inputDate: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            inputMode: "FUND_SHARES";
+            /**
+             * Instrumentid
+             * Format: uuid
+             */
+            instrumentId: string;
+            /** Quantity */
+            quantity: string;
+            /** Totalcost */
+            totalCost?: string | null;
+        };
         /**
          * CreateInvestmentAccountRequest
          * @description 接收待规范化的新账户名称。
@@ -212,6 +523,72 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * CreateStockPositionRequest
+         * @description 接收股票数量及总成本或平均成本二选一输入。
+         */
+        CreateStockPositionRequest: {
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Averagecost */
+            averageCost?: string | null;
+            costInputMode: components["schemas"]["CostInputMode"];
+            /**
+             * Inputdate
+             * Format: date
+             */
+            inputDate: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            inputMode: "STOCK_SHARES";
+            /**
+             * Instrumentid
+             * Format: uuid
+             */
+            instrumentId: string;
+            /** Quantity */
+            quantity: string;
+            /** Totalcost */
+            totalCost?: string | null;
+        };
+        /**
+         * CreateWatchlistGroupRequest
+         * @description 接收待规范化的新自选分组名称。
+         */
+        CreateWatchlistGroupRequest: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * CreateWatchlistItemRequest
+         * @description 接收待加入分组的标的和可选备注。
+         */
+        CreateWatchlistItemRequest: {
+            /**
+             * Instrumentid
+             * Format: uuid
+             */
+            instrumentId: string;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * Currency
+         * @description 表示权威财务值的币种。
+         * @enum {string}
+         */
+        Currency: "CNY";
+        /**
+         * DataFreshness
+         * @description 表示本地数据是否仍在约定的新鲜时间窗口内。
+         * @enum {string}
+         */
+        DataFreshness: "FRESH" | "STALE";
         /**
          * ErrorDetail
          * @description 描述可由客户端稳定匹配的单项 API 错误。
@@ -235,6 +612,23 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /**
+         * EstimatedFundValuationResponse
+         * @description 返回明确标记且不进入组合汇总的基金盘中估算。
+         */
+        EstimatedFundValuationResponse: {
+            /** Holdingprofit */
+            holdingProfit: string;
+            /** Marketvalue */
+            marketValue: string;
+            price: components["schemas"]["LatestPriceResponse"];
+        };
+        /**
+         * Exchange
+         * @description 区分 A 股交易所与中国公募基金登记域。
+         * @enum {string}
+         */
+        Exchange: "SSE" | "SZSE" | "BSE" | "FUND_CN";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -254,6 +648,50 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "not_ready";
+        };
+        /**
+         * InstrumentListResponse
+         * @description 返回稳定分页的资产搜索结果。
+         */
+        InstrumentListResponse: {
+            /** Items */
+            items: components["schemas"]["InstrumentResponse"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * InstrumentResponse
+         * @description 返回一期资产主数据和互不混淆的最新价格列表。
+         */
+        InstrumentResponse: {
+            assetType: components["schemas"]["AssetType"];
+            currency: components["schemas"]["Currency"];
+            exchange: components["schemas"]["Exchange"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Latestprices */
+            latestPrices: components["schemas"]["LatestPriceResponse"][];
+            market: components["schemas"]["Market"];
+            /** Name */
+            name: string;
+            /** Source */
+            source: string;
+            /** Sourceupdatedat */
+            sourceUpdatedAt: string | null;
+            /** Ticker */
+            ticker: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
         };
         /**
          * InvestmentAccountListResponse
@@ -299,6 +737,27 @@ export interface components {
             version: number;
         };
         /**
+         * LatestPriceResponse
+         * @description 返回一种明确口径的最新价格及其业务时间和抓取时间。
+         */
+        LatestPriceResponse: {
+            /** Asofat */
+            asOfAt: string | null;
+            /** Asofdate */
+            asOfDate: string | null;
+            /**
+             * Fetchedat
+             * Format: date-time
+             */
+            fetchedAt: string;
+            freshness: components["schemas"]["DataFreshness"];
+            priceType: components["schemas"]["PriceType"];
+            /** Source */
+            source: string;
+            /** Value */
+            value: string;
+        };
+        /**
          * LoginRequest
          * @description 接收登录邮箱和密码，并由服务统一处理错误以防账户枚举。
          */
@@ -307,6 +766,47 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * Market
+         * @description 表示资产所属市场，允许后续只新增枚举值。
+         * @enum {string}
+         */
+        Market: "CN";
+        /**
+         * MarketDataJobStatusResponse
+         * @description 返回一种任务最近运行的计数、时间和新鲜度。
+         */
+        MarketDataJobStatusResponse: {
+            /** Failedcount */
+            failedCount: number;
+            /** Finishedat */
+            finishedAt: string | null;
+            freshness: components["schemas"]["DataFreshness"];
+            jobType: components["schemas"]["SyncJobType"];
+            /** Source */
+            source: string;
+            /**
+             * Startedat
+             * Format: date-time
+             */
+            startedAt: string;
+            status: components["schemas"]["SyncStatus"];
+            /** Succeededcount */
+            succeededCount: number;
+        };
+        /**
+         * MarketDataStatusResponse
+         * @description 返回本地生成时间和已有同步任务的最近状态。
+         */
+        MarketDataStatusResponse: {
+            /**
+             * Generatedat
+             * Format: date-time
+             */
+            generatedAt: string;
+            /** Jobs */
+            jobs: components["schemas"]["MarketDataJobStatusResponse"][];
         };
         /**
          * PasswordResetConfirmRequest
@@ -334,6 +834,154 @@ export interface components {
             /** Message */
             message: string;
         };
+        /**
+         * PositionInputMode
+         * @description 区分股票份额、基金金额和基金份额三种录入语义。
+         * @enum {string}
+         */
+        PositionInputMode: "STOCK_SHARES" | "FUND_AMOUNT" | "FUND_SHARES";
+        /**
+         * PositionInstrumentResponse
+         * @description 返回持仓列表稳定需要的资产身份。
+         */
+        PositionInstrumentResponse: {
+            assetType: components["schemas"]["AssetType"];
+            currency: components["schemas"]["Currency"];
+            exchange: components["schemas"]["Exchange"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            market: components["schemas"]["Market"];
+            /** Name */
+            name: string;
+            /** Ticker */
+            ticker: string;
+        };
+        /**
+         * PositionListResponse
+         * @description 返回当前用户持仓的稳定分页列表。
+         */
+        PositionListResponse: {
+            /** Items */
+            items: components["schemas"]["PositionResponse"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * PositionResponse
+         * @description 返回原始输入、规范化值、资产身份和乐观锁版本。
+         */
+        PositionResponse: {
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Averagecost */
+            averageCost: string | null;
+            costInputMode: components["schemas"]["CostInputMode"] | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            estimatedValuation?: components["schemas"]["EstimatedFundValuationResponse"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Inputaveragecost */
+            inputAverageCost: string | null;
+            /** Inputcurrentvalue */
+            inputCurrentValue: string | null;
+            /**
+             * Inputdate
+             * Format: date
+             */
+            inputDate: string;
+            /** Inputholdingprofit */
+            inputHoldingProfit: string | null;
+            inputMode: components["schemas"]["PositionInputMode"];
+            /** Inputquantity */
+            inputQuantity: string | null;
+            /** Inputtotalcost */
+            inputTotalCost: string | null;
+            instrument: components["schemas"]["PositionInstrumentResponse"];
+            /** Quantity */
+            quantity: string | null;
+            /** Quantitybasisnav */
+            quantityBasisNav: string | null;
+            /** Quantitybasisnavdate */
+            quantityBasisNavDate: string | null;
+            /** Quantityestimated */
+            quantityEstimated: boolean;
+            /** Totalcost */
+            totalCost: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            valuation?: components["schemas"]["PositionValuationResponse"] | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * PositionSummaryResponse
+         * @description 返回组合成本、价格完整性和可选权威估值汇总。
+         */
+        PositionSummaryResponse: {
+            /** Accountid */
+            accountId: string | null;
+            /**
+             * Calculatedat
+             * Format: date-time
+             */
+            calculatedAt: string;
+            /** Holdingprofit */
+            holdingProfit: string | null;
+            /** Marketvalue */
+            marketValue: string | null;
+            /** Missingpricepositionids */
+            missingPricePositionIds: string[];
+            /** Positioncount */
+            positionCount: number;
+            /** Pricedpositioncount */
+            pricedPositionCount: number;
+            /** Returnrate */
+            returnRate: string | null;
+            /** Stalepositioncount */
+            stalePositionCount: number;
+            status: components["schemas"]["ValuationStatus"];
+            /** Totalcost */
+            totalCost: string;
+        };
+        /**
+         * PositionValuationResponse
+         * @description 返回单只持仓使用的权威价格及精确估值。
+         */
+        PositionValuationResponse: {
+            /** Holdingprofit */
+            holdingProfit: string;
+            /** Marketvalue */
+            marketValue: string;
+            price: components["schemas"]["LatestPriceResponse"];
+            /** Returnrate */
+            returnRate: string;
+        };
+        /**
+         * PriceType
+         * @description 严格区分股票价格、官方单位净值和盘中估算净值。
+         * @enum {string}
+         */
+        PriceType: "STOCK_LAST" | "FUND_OFFICIAL_NAV" | "FUND_ESTIMATED_NAV";
         /**
          * RegistrationRequest
          * @description 接收待由认证服务完整校验的邮箱和密码原文。
@@ -383,12 +1031,119 @@ export interface components {
             status: components["schemas"]["UserStatus"];
         };
         /**
+         * SyncJobType
+         * @description 标识 Worker 执行的独立同步任务。
+         * @enum {string}
+         */
+        SyncJobType: "INSTRUMENT_MASTER" | "STOCK_PRICES" | "FUND_OFFICIAL_NAV" | "FUND_ESTIMATED_NAV";
+        /**
+         * SyncStatus
+         * @description 表示同步任务完整生命周期。
+         * @enum {string}
+         */
+        SyncStatus: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+        /**
+         * UpdateFundAmountPositionRequest
+         * @description 接收带版本号的基金金额模式部分更新。
+         */
+        UpdateFundAmountPositionRequest: {
+            /** Accountid */
+            accountId?: string | null;
+            /** Currentvalue */
+            currentValue?: string | null;
+            /** Holdingprofit */
+            holdingProfit?: string | null;
+            /** Inputdate */
+            inputDate?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            inputMode: "FUND_AMOUNT";
+            /** Version */
+            version: number;
+        };
+        /**
+         * UpdateFundSharesPositionRequest
+         * @description 接收带版本号的基金份额模式部分更新。
+         */
+        UpdateFundSharesPositionRequest: {
+            /** Accountid */
+            accountId?: string | null;
+            /** Averagecost */
+            averageCost?: string | null;
+            costInputMode?: components["schemas"]["CostInputMode"] | null;
+            /** Inputdate */
+            inputDate?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            inputMode: "FUND_SHARES";
+            /** Quantity */
+            quantity?: string | null;
+            /** Totalcost */
+            totalCost?: string | null;
+            /** Version */
+            version: number;
+        };
+        /**
          * UpdateInvestmentAccountRequest
          * @description 使用版本号选择性修改名称或排序。
          */
         UpdateInvestmentAccountRequest: {
             /** Name */
             name?: string | null;
+            /** Sortorder */
+            sortOrder?: number | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * UpdateStockPositionRequest
+         * @description 接收带版本号的股票持仓部分更新。
+         */
+        UpdateStockPositionRequest: {
+            /** Accountid */
+            accountId?: string | null;
+            /** Averagecost */
+            averageCost?: string | null;
+            costInputMode?: components["schemas"]["CostInputMode"] | null;
+            /** Inputdate */
+            inputDate?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            inputMode: "STOCK_SHARES";
+            /** Quantity */
+            quantity?: string | null;
+            /** Totalcost */
+            totalCost?: string | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * UpdateWatchlistGroupRequest
+         * @description 使用版本号选择性修改分组名称或排序。
+         */
+        UpdateWatchlistGroupRequest: {
+            /** Name */
+            name?: string | null;
+            /** Sortorder */
+            sortOrder?: number | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * UpdateWatchlistItemRequest
+         * @description 使用版本号选择性移动、修改备注或调整排序。
+         */
+        UpdateWatchlistItemRequest: {
+            /** Groupid */
+            groupId?: string | null;
+            /** Note */
+            note?: string | null;
             /** Sortorder */
             sortOrder?: number | null;
             /** Version */
@@ -412,6 +1167,98 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * ValuationStatus
+         * @description 表示组合估值是否完整、陈旧或为空。
+         * @enum {string}
+         */
+        ValuationStatus: "COMPLETE" | "STALE" | "INCOMPLETE" | "EMPTY";
+        /**
+         * WatchlistGroupListResponse
+         * @description 返回当前用户全部自选分组。
+         */
+        WatchlistGroupListResponse: {
+            /** Items */
+            items: components["schemas"]["WatchlistGroupResponse"][];
+        };
+        /**
+         * WatchlistGroupResponse
+         * @description 返回用户可见的自选分组及标的数量。
+         */
+        WatchlistGroupResponse: {
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Isdefault */
+            isDefault: boolean;
+            /** Itemcount */
+            itemCount: number;
+            /** Name */
+            name: string;
+            /** Sortorder */
+            sortOrder: number;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * WatchlistItemListResponse
+         * @description 返回指定分组的稳定分页观察标的列表。
+         */
+        WatchlistItemListResponse: {
+            /** Items */
+            items: components["schemas"]["WatchlistItemResponse"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * WatchlistItemResponse
+         * @description 返回观察标的、所属分组、备注、行情和乐观锁版本。
+         */
+        WatchlistItemResponse: {
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Groupid
+             * Format: uuid
+             */
+            groupId: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            instrument: components["schemas"]["InstrumentResponse"];
+            /** Note */
+            note: string | null;
+            /** Sortorder */
+            sortOrder: number;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            /** Version */
+            version: number;
         };
     };
     responses: never;
@@ -666,6 +1513,71 @@ export interface operations {
             };
         };
     };
+    search_instruments_api_v1_instruments_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                assetType?: components["schemas"]["AssetType"] | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstrumentListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_instrument_api_v1_instruments__instrument_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instrument_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstrumentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_investment_accounts_api_v1_investment_accounts_get: {
         parameters: {
             query?: {
@@ -813,6 +1725,530 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvestmentAccountResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_market_data_status_api_v1_market_data_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketDataStatusResponse"];
+                };
+            };
+        };
+    };
+    get_position_summary_api_v1_position_summary_get: {
+        parameters: {
+            query?: {
+                accountId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_positions_api_v1_positions_get: {
+        parameters: {
+            query?: {
+                accountId?: string | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_position_api_v1_positions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStockPositionRequest"] | components["schemas"]["CreateFundAmountPositionRequest"] | components["schemas"]["CreateFundSharesPositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_position_api_v1_positions__position_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                position_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_position_api_v1_positions__position_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                position_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_position_api_v1_positions__position_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                position_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStockPositionRequest"] | components["schemas"]["UpdateFundAmountPositionRequest"] | components["schemas"]["UpdateFundSharesPositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_watchlist_groups_api_v1_watchlist_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistGroupListResponse"];
+                };
+            };
+        };
+    };
+    create_watchlist_group_api_v1_watchlist_groups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWatchlistGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistGroupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_watchlist_group_api_v1_watchlist_groups__group_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistGroupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_watchlist_group_api_v1_watchlist_groups__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_watchlist_group_api_v1_watchlist_groups__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWatchlistGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistGroupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_watchlist_items_api_v1_watchlist_groups__group_id__items_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistItemListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_watchlist_item_api_v1_watchlist_groups__group_id__items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWatchlistItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_watchlist_item_api_v1_watchlist_items__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_watchlist_item_api_v1_watchlist_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_watchlist_item_api_v1_watchlist_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWatchlistItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistItemResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1,15 +1,15 @@
 """价格快照、同步任务和 advisory lock 持久化边界。"""
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
-from sqlalchemy import text, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from app.modules.instruments.enums import AssetType, Market
-from app.modules.instruments.models import Instrument
+from app.modules.market_data.domain import PriceRecord, SyncRunRecord
 from app.modules.market_data.enums import PriceType, SyncJobType, SyncStatus
 from app.modules.market_data.models import DataSyncRun, InstrumentPrice
 from app.modules.market_data.providers.schemas import (
@@ -177,6 +177,65 @@ class MarketDataRepository:
             asset_type=AssetType.FUND,
         )
 
+    async def latest_prices(
+        self,
+        *,
+        instrument_ids: Sequence[UUID],
+    ) -> dict[UUID, list[PriceRecord]]:
+        """按资产和价格类型返回最新业务时间的一条有效快照。"""
+        if not instrument_ids:
+            return {}
+        statement = (
+            select(InstrumentPrice)
+            .where(InstrumentPrice.instrument_id.in_(instrument_ids))
+            .distinct(InstrumentPrice.instrument_id, InstrumentPrice.price_type)
+            .order_by(
+                InstrumentPrice.instrument_id,
+                InstrumentPrice.price_type,
+                InstrumentPrice.as_of_date.desc().nullslast(),
+                InstrumentPrice.as_of_at.desc().nullslast(),
+                InstrumentPrice.fetched_at.desc(),
+                InstrumentPrice.id.desc(),
+            )
+        )
+        records: dict[UUID, list[PriceRecord]] = {}
+        for price in (await self._session.scalars(statement)).all():
+            records.setdefault(price.instrument_id, []).append(self._to_price_record(price))
+        return records
+
+    async def latest_sync_runs(self) -> list[SyncRunRecord]:
+        """返回每种任务最近一次运行，供状态接口判断失败和陈旧。"""
+        statement = (
+            select(DataSyncRun)
+            .distinct(DataSyncRun.job_type)
+            .order_by(
+                DataSyncRun.job_type,
+                DataSyncRun.started_at.desc(),
+                DataSyncRun.id.desc(),
+            )
+        )
+        runs = (await self._session.scalars(statement)).all()
+        return [self._to_sync_run_record(run) for run in runs]
+
+    async def official_nav_on_date(
+        self,
+        *,
+        instrument_id: UUID,
+        nav_date: date,
+    ) -> PriceRecord | None:
+        """读取基金指定真实业务日期最近抓取的一条官方单位净值。"""
+        price = await self._session.scalar(
+            select(InstrumentPrice)
+            .where(
+                InstrumentPrice.instrument_id == instrument_id,
+                InstrumentPrice.price_type == PriceType.FUND_OFFICIAL_NAV,
+                InstrumentPrice.as_of_date == nav_date,
+            )
+            .order_by(InstrumentPrice.fetched_at.desc(), InstrumentPrice.id.desc())
+            .limit(1)
+        )
+        return self._to_price_record(price) if price is not None else None
+
     async def _upsert_at_prices(
         self,
         snapshots: list[dict[str, object]],
@@ -246,3 +305,29 @@ class MarketDataRepository:
             )
         ).all()
         return {str(ticker): instrument_id for ticker, instrument_id in rows}
+
+    @staticmethod
+    def _to_price_record(price: InstrumentPrice) -> PriceRecord:
+        """把价格 ORM 实例转换为只读领域记录。"""
+        return PriceRecord(
+            instrument_id=price.instrument_id,
+            price_type=price.price_type,
+            value=price.value,
+            as_of_date=price.as_of_date,
+            as_of_at=price.as_of_at,
+            fetched_at=price.fetched_at,
+            source=price.source,
+        )
+
+    @staticmethod
+    def _to_sync_run_record(run: DataSyncRun) -> SyncRunRecord:
+        """移除内部错误摘要后返回同步任务公开状态。"""
+        return SyncRunRecord(
+            job_type=run.job_type,
+            status=run.status,
+            source=run.source,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            succeeded_count=run.succeeded_count,
+            failed_count=run.failed_count,
+        )

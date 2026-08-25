@@ -1,0 +1,17 @@
+name: ai-pick-stock-v2
+
+services:
+  api:
+    environment:
+      AIPICKSTOCK_ENVIRONMENT: production
+      AIPICKSTOCK_PUBLIC_WEB_URL: https://aipickstock.duckdns.org
+
+  worker:
+    environment:
+      AIPICKSTOCK_ENVIRONMENT: production
+      AIPICKSTOCK_PUBLIC_WEB_URL: https://aipickstock.duckdns.org
+
+  migrate:
+    environment:
+      AIPICKSTOCK_ENVIRONMENT: production
+      AIPICKSTOCK_PUBLIC_WEB_URL: https://aipickstock.duckdns.org

@@ -13,13 +13,18 @@ from app.core.config import Settings
 from app.core.database import DatabaseProbe, create_database_engine, probe_database
 from app.core.errors import install_error_handlers
 from app.core.middleware import (
-    AllowAllAuthenticationRateLimiter,
     AuthenticationRateLimiter,
+    InMemoryAuthenticationRateLimiter,
     RequestSecurityMiddleware,
 )
 from app.modules.auth.mailer import SmtpPasswordResetMailer
 from app.modules.auth.router import router as auth_router
+from app.modules.instruments.router import router as instrument_router
+from app.modules.market_data.router import router as market_data_router
+from app.modules.portfolios.position_router import router as position_router
+from app.modules.portfolios.position_router import summary_router as position_summary_router
 from app.modules.portfolios.router import router as portfolio_router
+from app.modules.watchlists.router import router as watchlist_router
 
 
 class HealthResponse(BaseModel):
@@ -76,11 +81,16 @@ def create_app(
     application.add_middleware(
         RequestSecurityMiddleware,
         authentication_rate_limiter=(
-            authentication_rate_limiter or AllowAllAuthenticationRateLimiter()
+            authentication_rate_limiter or InMemoryAuthenticationRateLimiter()
         ),
     )
     application.include_router(auth_router, prefix="/api/v1")
     application.include_router(portfolio_router, prefix="/api/v1")
+    application.include_router(instrument_router, prefix="/api/v1")
+    application.include_router(market_data_router, prefix="/api/v1")
+    application.include_router(position_router, prefix="/api/v1")
+    application.include_router(position_summary_router, prefix="/api/v1")
+    application.include_router(watchlist_router, prefix="/api/v1")
 
     @application.get(
         "/api/v1/health/live",

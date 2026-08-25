@@ -14,7 +14,11 @@ from app.modules.auth.domain import SessionPrincipal, UserIdentity
 from app.modules.auth.mailer import PasswordResetMailer
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.service import AuthService
+from app.modules.instruments.repository import InstrumentRepository
+from app.modules.market_data.repository import MarketDataRepository
+from app.modules.portfolios.position_repository import PositionRepository
 from app.modules.portfolios.repository import InvestmentAccountRepository
+from app.modules.watchlists.repository import WatchlistRepository
 
 
 async def get_database_session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -41,6 +45,40 @@ def get_investment_account_repository(
 ) -> InvestmentAccountRepository:
     """把请求事务绑定到投资账户 Repository。"""
     return InvestmentAccountRepository(session)
+
+
+def get_instrument_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> InstrumentRepository:
+    """把请求事务绑定到资产主数据 Repository。"""
+    return InstrumentRepository(session)
+
+
+def get_market_data_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> MarketDataRepository:
+    """把请求事务绑定到行情读取 Repository。"""
+    return MarketDataRepository(session)
+
+
+def get_position_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> PositionRepository:
+    """把请求事务绑定到用户隔离的持仓 Repository。"""
+    return PositionRepository(session)
+
+
+def get_watchlist_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> WatchlistRepository:
+    """把请求事务绑定到用户隔离的自选 Repository。"""
+    return WatchlistRepository(session)
+
+
+def get_settings(request: Request) -> Settings:
+    """返回应用启动时已完成边界校验的配置。"""
+    settings: Settings = request.app.state.settings
+    return settings
 
 
 def get_session_cookie_policy(request: Request) -> SessionCookiePolicy:

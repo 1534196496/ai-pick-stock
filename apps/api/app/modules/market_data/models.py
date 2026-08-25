@@ -46,6 +46,13 @@ class InstrumentPrice(Base):
             "as_of_date IS NOT NULL OR as_of_at IS NOT NULL",
             name="ck_instrument_prices_business_time",
         ),
+        CheckConstraint(
+            "(price_type = 'FUND_OFFICIAL_NAV' "
+            "AND as_of_date IS NOT NULL AND as_of_at IS NULL) "
+            "OR (price_type IN ('STOCK_LAST', 'FUND_ESTIMATED_NAV') "
+            "AND as_of_date IS NULL AND as_of_at IS NOT NULL)",
+            name="ck_instrument_prices_time_semantics",
+        ),
         CheckConstraint("char_length(source) BETWEEN 1 AND 80", name="ck_instrument_prices_source"),
         Index(
             "ix_instrument_prices_latest",

@@ -12,6 +12,7 @@ from app.api.dependencies import (
     get_optional_session_principal,
     get_password_reset_mailer,
     get_session_cookie_policy,
+    get_watchlist_repository,
 )
 from app.core.errors import ApiError, request_id_from
 from app.modules.auth.domain import SessionPrincipal, UserIdentity
@@ -30,6 +31,7 @@ from app.modules.auth.schemas import (
 )
 from app.modules.auth.service import AuthenticationError, AuthService, RegistrationError
 from app.modules.portfolios.repository import InvestmentAccountRepository
+from app.modules.watchlists.repository import WatchlistRepository
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +55,17 @@ async def register(
         InvestmentAccountRepository,
         Depends(get_investment_account_repository),
     ],
+    watchlist_repository: Annotated[
+        WatchlistRepository,
+        Depends(get_watchlist_repository),
+    ],
 ) -> RegistrationResponse:
     """创建邮箱密码用户，并保证响应不包含密码或摘要。"""
-    service = AuthService(repository, account_initializer=account_repository)
+    service = AuthService(
+        repository,
+        account_initializer=account_repository,
+        watchlist_initializer=watchlist_repository,
+    )
     try:
         identity = await service.register(
             email=payload.email,

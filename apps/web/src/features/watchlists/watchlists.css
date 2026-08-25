@@ -1,0 +1,279 @@
+.watchlists-heading {
+  align-items: center;
+}
+
+.watchlists-layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 30rem;
+  border-block: 1px solid var(--line);
+}
+
+.watchlist-groups {
+  padding: var(--space-5) var(--space-5) var(--space-5) 0;
+  border-right: 1px solid var(--line);
+}
+
+.watchlist-groups__heading,
+.watchlist-content__heading,
+.watchlist-group__select,
+.watchlist-dialog__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.watchlist-groups__heading h2,
+.watchlist-content__heading h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.watchlist-groups__status,
+.watchlist-content__heading > span,
+.watchlist-dialog__note {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.watchlist-group-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watchlist-group {
+  border-radius: var(--radius-small);
+}
+
+.watchlist-group--active {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.watchlist-group__select {
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.watchlist-group__select > span:first-child {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.watchlist-group__select small {
+  color: var(--accent);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.watchlist-group__actions {
+  display: flex;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.watchlist-group__actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.watchlist-group-select {
+  display: none;
+}
+
+.watchlist-content {
+  padding: var(--space-5) 0 var(--space-5) var(--space-6);
+}
+
+.watchlist-content__heading {
+  min-height: 2.75rem;
+  padding-bottom: var(--space-4);
+}
+
+.watchlist-content__error {
+  margin-bottom: var(--space-4);
+}
+
+.watchlist-item-list {
+  display: grid;
+}
+
+.watchlist-item {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(15rem, 1.5fr) minmax(9rem, 1fr) auto;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: 6.5rem;
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+}
+
+.watchlist-item__identity strong,
+.watchlist-item__identity span {
+  display: block;
+}
+
+.watchlist-item__identity span,
+.watchlist-item__note > span,
+.watchlist-items__status,
+.watchlist-dialog__instrument {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.watchlist-item__prices {
+  min-width: 0;
+}
+
+.watchlist-item__note p,
+.watchlist-dialog__instrument {
+  margin: var(--space-1) 0 0;
+}
+
+.watchlist-item__note p {
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+}
+
+.watchlist-item__actions {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+}
+
+.watchlist-item__actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.watchlist-item__actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.watchlist-dialog {
+  width: min(calc(100% - 2rem), 30rem);
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.watchlist-dialog::backdrop {
+  background: rgb(19 35 29 / 40%);
+}
+
+.watchlist-dialog__form,
+.watchlist-dialog__form label {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.watchlist-dialog__form label {
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.watchlist-dialog__form input,
+.watchlist-dialog__form select,
+.watchlist-dialog__form textarea,
+.watchlist-group-select select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.watchlist-dialog__form textarea {
+  resize: vertical;
+}
+
+.watchlist-dialog__note {
+  margin: 0;
+}
+
+.watchlist-dialog__reload {
+  justify-self: start;
+}
+
+.watchlist-dialog__actions .primary-button {
+  margin-left: auto;
+}
+
+.danger-button {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--gain);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--gain);
+  cursor: pointer;
+}
+
+.danger-text {
+  color: var(--gain);
+}
+
+@media (max-width: 45rem) {
+  .watchlists-heading {
+    align-items: stretch;
+  }
+
+  .watchlists-layout {
+    grid-template-columns: 1fr;
+    border: 0;
+  }
+
+  .watchlist-groups {
+    padding: 0 0 var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .watchlist-group-select {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 650;
+  }
+
+  .watchlist-group-list {
+    display: none;
+  }
+
+  .watchlist-content {
+    padding: var(--space-5) 0;
+  }
+
+  .watchlist-item {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .watchlist-item__prices,
+  .watchlist-item__note {
+    grid-column: 1 / -1;
+  }
+}

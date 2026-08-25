@@ -3,7 +3,6 @@ name = "ai-pick-stock-api"
 version = "0.1.0"
 description = "个人股票与基金持仓工具 API"
 requires-python = ">=3.12,<3.13"
-license = "Apache-2.0"
 dependencies = [
     "alembic>=1.16,<2",
     "fastapi>=0.116,<1",
