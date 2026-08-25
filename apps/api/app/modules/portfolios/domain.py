@@ -72,7 +72,7 @@ class PositionRecord:
 
 @dataclass(frozen=True, slots=True)
 class PendingFundAmountPosition:
-    """表示等待录入日期官方净值补算份额的基金金额持仓。"""
+    """表示等待可用官方净值补算份额的基金金额持仓。"""
 
     id: UUID
     instrument_id: UUID

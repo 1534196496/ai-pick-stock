@@ -78,14 +78,16 @@ export function PositionList({
             <span role="cell">{accountNames.get(position.accountId) ?? '未知账户'}</span>
             <span className="number-cell" role="cell">
               {position.quantity === null ? '待推算' : formatDecimal(position.quantity)}
-              {position.quantityEstimated && <small>按录入日净值推算</small>}
+              {position.quantityEstimated && (
+                <small>按 {position.quantityBasisNavDate ?? '最近官方净值'} 推算</small>
+              )}
             </span>
             <span className="position-price-cell" role="cell">
               {official != null && <PriceStatus compact currency={position.instrument.currency} prices={[official.price]} />}
               {estimate != null && <PriceStatus compact currency={position.instrument.currency} prices={[estimate.price]} />}
               {official == null && estimate == null && (
                 <span className="missing-price">
-                  {awaitingShares ? '等待录入日官方净值' : '缺少权威价格'}
+                  {awaitingShares ? '等待可用官方净值' : '缺少权威价格'}
                 </span>
               )}
             </span>

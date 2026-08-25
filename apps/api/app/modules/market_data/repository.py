@@ -236,6 +236,29 @@ class MarketDataRepository:
         )
         return self._to_price_record(price) if price is not None else None
 
+    async def latest_official_nav_on_or_before(
+        self,
+        *,
+        instrument_id: UUID,
+        nav_date: date,
+    ) -> PriceRecord | None:
+        """读取指定日期当天或此前最近一条官方单位净值。"""
+        price = await self._session.scalar(
+            select(InstrumentPrice)
+            .where(
+                InstrumentPrice.instrument_id == instrument_id,
+                InstrumentPrice.price_type == PriceType.FUND_OFFICIAL_NAV,
+                InstrumentPrice.as_of_date <= nav_date,
+            )
+            .order_by(
+                InstrumentPrice.as_of_date.desc(),
+                InstrumentPrice.fetched_at.desc(),
+                InstrumentPrice.id.desc(),
+            )
+            .limit(1)
+        )
+        return self._to_price_record(price) if price is not None else None
+
     async def _upsert_at_prices(
         self,
         snapshots: list[dict[str, object]],

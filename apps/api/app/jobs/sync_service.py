@@ -225,15 +225,15 @@ async def _reconcile_pending_fund_amounts(
     positions: PositionRepository,
     market_data: MarketDataRepository,
 ) -> int:
-    """使用录入日期完全一致的官方净值补算待处理基金份额。"""
+    """使用录入日当天或此前最近的官方净值补算待处理基金份额。"""
     reconciled = 0
     skipped = 0
     for position in await positions.list_pending_fund_amounts():
-        price = await market_data.official_nav_on_date(
+        price = await market_data.latest_official_nav_on_or_before(
             instrument_id=position.instrument_id,
             nav_date=position.input_date,
         )
-        if price is None:
+        if price is None or price.as_of_date is None:
             continue
         try:
             quantity = calculate_decimal(
@@ -256,7 +256,7 @@ async def _reconcile_pending_fund_amounts(
                 quantity=quantity,
                 average_cost=average_cost,
                 nav=price.value,
-                nav_date=position.input_date,
+                nav_date=price.as_of_date,
                 changed_at=datetime.now(UTC),
             )
         )

@@ -208,7 +208,7 @@ export function FundPositionDialog({
               <input required inputMode="decimal" placeholder="亏损填负数，如 -320" value={holdingProfit} onChange={(event) => setHoldingProfit(event.target.value)} />
             </label>
             <p className="fund-input-note">
-              系统会用该日期的官方净值推算份额；暂无当天净值时先保存金额，后续再补齐份额。
+              优先使用该日官方净值；当天尚未公布时，使用此前最近一条官方净值，并保留实际净值日期。
             </p>
             <dl className="position-preview" aria-label="基金成本预览">
               <div><dt>推算总成本</dt><dd>{totalCostPreview ? formatCurrency(totalCostPreview) : '—'}</dd></div>

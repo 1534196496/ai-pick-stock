@@ -421,16 +421,16 @@ class PositionService:
         instrument_id: UUID,
         input_date: date,
     ) -> OfficialNavBasis | None:
-        """只使用录入日期完全一致的官方单位净值作为份额推算依据。"""
+        """使用录入日当天或此前最近的官方单位净值推算份额。"""
         if self._market_data is None:
             raise RuntimeError("基金持仓服务缺少行情 Repository")
-        price = await self._market_data.official_nav_on_date(
+        price = await self._market_data.latest_official_nav_on_or_before(
             instrument_id=instrument_id,
             nav_date=input_date,
         )
         return (
-            OfficialNavBasis(value=price.value, nav_date=input_date)
-            if price is not None
+            OfficialNavBasis(value=price.value, nav_date=price.as_of_date)
+            if price is not None and price.as_of_date is not None
             else None
         )
 
