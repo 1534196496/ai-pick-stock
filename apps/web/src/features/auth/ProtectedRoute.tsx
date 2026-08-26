@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import { AccountDialog } from '../accounts/AccountDialog';
 import { useLogout, useSession } from './hooks';
 
 /** 等待会话恢复，并阻止未登录用户访问业务路由。 */
@@ -19,11 +17,8 @@ export function UserMenu() {
   const session = useSession();
   const mutation = useLogout();
   const navigate = useNavigate();
-  const [accountsOpen, setAccountsOpen] = useState(false);
   return <div className="user-menu">
     <span className="account-label">{session.data?.email}</span>
-    <button className="text-button" type="button" onClick={() => setAccountsOpen(true)}>投资账户</button>
     <button className="text-button" disabled={mutation.isPending} type="button" onClick={() => void mutation.mutateAsync().then(() => navigate('/login', { replace: true }))}>退出</button>
-    <AccountDialog open={accountsOpen} onClose={() => setAccountsOpen(false)} />
   </div>;
 }

@@ -301,12 +301,23 @@ a:hover {
     display: grid;
   }
 
-  .ledger-summary > div {
-    padding-inline: var(--space-3);
+  .ledger-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-summary > div,
+  .ledger-summary > div:first-child {
+    padding: var(--space-4) 0;
+    border-left: 0;
+  }
+
+  .ledger-summary > div + div {
+    border-top: 1px solid var(--line);
   }
 
   .ledger-summary dd {
     font-size: 1rem;
+    overflow-wrap: anywhere;
   }
 
   .auth-shell {

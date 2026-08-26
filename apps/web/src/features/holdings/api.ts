@@ -19,16 +19,16 @@ export type UpdatePositionInput =
   | UpdateFundAmountPositionInput
   | UpdateFundSharesPositionInput;
 
-/** 分页读取全部账户或指定账户的持仓与本地权威估值。 */
-export function listPositions(accountId: string | null): Promise<PositionList> {
+/** 分页读取全部分组或指定分组的持仓与本地行情估值。 */
+export function listPositions(groupId: string | null): Promise<PositionList> {
   const parameters = new URLSearchParams({ page: '1', pageSize: '100' });
-  if (accountId !== null) parameters.set('accountId', accountId);
+  if (groupId !== null) parameters.set('groupId', groupId);
   return apiRequest(`/api/v1/positions?${parameters.toString()}`);
 }
 
-/** 读取全部账户或指定账户的组合权威汇总。 */
-export function getPositionSummary(accountId: string | null): Promise<PositionSummary> {
-  const suffix = accountId === null ? '' : `?accountId=${encodeURIComponent(accountId)}`;
+/** 读取全部分组或指定分组的组合汇总。 */
+export function getPositionSummary(groupId: string | null): Promise<PositionSummary> {
+  const suffix = groupId === null ? '' : `?groupId=${encodeURIComponent(groupId)}`;
   return apiRequest(`/api/v1/position-summary${suffix}`);
 }
 
@@ -45,7 +45,7 @@ export function createPosition(input: CreatePositionInput): Promise<Position> {
   });
 }
 
-/** 按录入模式和乐观锁版本更新持仓原始输入或所属账户。 */
+/** 按录入模式和乐观锁版本更新持仓原始输入或所属分组。 */
 export function updatePosition(
   positionId: string,
   input: UpdatePositionInput,

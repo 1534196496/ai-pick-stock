@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import { ApiClientError } from '../../shared/api/client';
-import { useInvestmentAccounts } from '../accounts/hooks';
 import { FundPositionDialog } from '../holdings/FundPositionDialog';
 import type { Position } from '../holdings/api';
 import { StockPositionDialog } from '../holdings/StockPositionDialog';
@@ -28,7 +27,6 @@ interface HoldingTarget {
 /** 展示响应式自选分组导航，并为观察标的区域提供稳定选择状态。 */
 export function WatchlistsPage() {
   const groups = useWatchlistGroups();
-  const accounts = useInvestmentAccounts();
   const updateGroup = useUpdateWatchlistGroup();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
@@ -111,7 +109,11 @@ export function WatchlistsPage() {
           <label className="watchlist-group-select">
             <span>当前分组</span>
             <select value={effectiveGroupId ?? ''} onChange={(event) => setSelectedGroupId(event.target.value)}>
-              {items.map((group) => <option key={group.id} value={group.id}>{group.name}（{group.itemCount}）</option>)}
+              {items.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}（持仓 {group.positionCount} · 自选 {group.itemCount}）
+                </option>
+              ))}
             </select>
           </label>
           <ul className="watchlist-group-list">
@@ -119,7 +121,7 @@ export function WatchlistsPage() {
               <li className={group.id === effectiveGroupId ? 'watchlist-group watchlist-group--active' : 'watchlist-group'} key={group.id}>
                 <button className="watchlist-group__select" type="button" onClick={() => setSelectedGroupId(group.id)}>
                   <span><strong>{group.name}</strong>{group.isDefault && <small>默认</small>}</span>
-                  <span>{group.itemCount}</span>
+                  <span>{group.positionCount} 持仓 · {group.itemCount} 自选</span>
                 </button>
                 {group.id === effectiveGroupId && (
                   <div className="watchlist-group__actions">
@@ -149,7 +151,7 @@ export function WatchlistsPage() {
                 items={watchlistItems.data?.items ?? []}
                 isPending={watchlistItems.isPending}
                 isError={watchlistItems.isError}
-                canAddToHoldings={(accounts.data?.items.length ?? 0) > 0}
+                canAddToHoldings={items.length > 0}
                 onEdit={setEditingItem}
                 onAddToHoldings={(item) => setHoldingTarget({ instrument: item.instrument })}
               />
@@ -186,8 +188,8 @@ export function WatchlistsPage() {
         <StockPositionDialog
           key={holdingTarget.position?.id ?? holdingTarget.instrument.id}
           instrument={holdingTarget.instrument}
-          accounts={accounts.data?.items ?? []}
-          defaultAccountId={null}
+          groups={items}
+          defaultGroupId={effectiveGroupId}
           position={holdingTarget.position}
           onExistingPosition={(position) => setHoldingTarget({
             instrument: position.instrument,
@@ -200,8 +202,8 @@ export function WatchlistsPage() {
         <FundPositionDialog
           key={holdingTarget.position?.id ?? holdingTarget.instrument.id}
           instrument={holdingTarget.instrument}
-          accounts={accounts.data?.items ?? []}
-          defaultAccountId={null}
+          groups={items}
+          defaultGroupId={effectiveGroupId}
           position={holdingTarget.position}
           onExistingPosition={(position) => setHoldingTarget({
             instrument: position.instrument,

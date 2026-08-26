@@ -19,9 +19,17 @@ class SyncRunView:
 class MarketDataFreshnessPolicy:
     """根据任务频率和每日任务节奏判断本地行情是否陈旧。"""
 
-    def __init__(self, *, stock_refresh_seconds: int) -> None:
-        """使用实际股票刷新配置派生盘中数据的新鲜窗口。"""
-        self._realtime_window = timedelta(seconds=max(300, stock_refresh_seconds * 3))
+    def __init__(
+        self,
+        *,
+        stock_refresh_seconds: int,
+        fund_estimate_refresh_seconds: int | None = None,
+    ) -> None:
+        """分别使用股票和基金估算频率派生盘中数据新鲜窗口。"""
+        self._stock_window = timedelta(seconds=max(300, stock_refresh_seconds * 3))
+        self._fund_estimate_window = timedelta(
+            seconds=max(300, (fund_estimate_refresh_seconds or stock_refresh_seconds) * 3)
+        )
 
     def for_price(
         self,
@@ -31,16 +39,13 @@ class MarketDataFreshnessPolicy:
     ) -> DataFreshness:
         """以抓取时间判断旧值是否仍处于对应价格类型的窗口内。"""
         current = now or datetime.now(UTC)
-        window = (
-            timedelta(hours=48)
-            if price.price_type == PriceType.FUND_OFFICIAL_NAV
-            else self._realtime_window
-        )
-        return (
-            DataFreshness.FRESH
-            if current - price.fetched_at <= window
-            else DataFreshness.STALE
-        )
+        if price.price_type == PriceType.FUND_OFFICIAL_NAV:
+            window = timedelta(hours=48)
+        elif price.price_type == PriceType.FUND_ESTIMATED_NAV:
+            window = self._fund_estimate_window
+        else:
+            window = self._stock_window
+        return DataFreshness.FRESH if current - price.fetched_at <= window else DataFreshness.STALE
 
     def for_sync_run(
         self,
@@ -53,11 +58,7 @@ class MarketDataFreshnessPolicy:
             return DataFreshness.STALE
         current = now or datetime.now(UTC)
         window = self._sync_window(run.job_type)
-        return (
-            DataFreshness.FRESH
-            if current - run.finished_at <= window
-            else DataFreshness.STALE
-        )
+        return DataFreshness.FRESH if current - run.finished_at <= window else DataFreshness.STALE
 
     def _sync_window(self, job_type: SyncJobType) -> timedelta:
         """为每日任务保留跨周末抓取窗口，为盘中任务使用配置派生窗口。"""
@@ -65,7 +66,9 @@ class MarketDataFreshnessPolicy:
             return timedelta(hours=36)
         if job_type == SyncJobType.FUND_OFFICIAL_NAV:
             return timedelta(hours=48)
-        return self._realtime_window
+        if job_type == SyncJobType.FUND_ESTIMATED_NAV:
+            return self._fund_estimate_window
+        return self._stock_window
 
 
 class MarketDataStatusService:

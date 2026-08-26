@@ -15,6 +15,7 @@ class LatestPriceResponse(ApiModel):
 
     price_type: PriceType
     value: Decimal
+    change_rate: Decimal | None
     as_of_date: date | None
     as_of_at: datetime | None
     fetched_at: datetime

@@ -7,7 +7,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
-    Enum,
     Index,
     String,
     UniqueConstraint,
@@ -17,20 +16,8 @@ from sqlalchemy import (
 from sqlalchemy import Uuid as SqlUuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.database import Base
+from app.core.database import Base, EnumValueType
 from app.modules.instruments.enums import AssetType, Currency, Exchange, Market
-
-
-def enum_type(enum_class: type[AssetType | Market | Exchange | Currency], name: str) -> Enum:
-    """创建以字符串值存储且由数据库检查约束保护的枚举类型。"""
-    return Enum(
-        enum_class,
-        name=name,
-        native_enum=False,
-        create_constraint=False,
-        validate_strings=True,
-        values_callable=lambda members: [member.value for member in members],
-    )
 
 
 class Instrument(Base):
@@ -39,6 +26,13 @@ class Instrument(Base):
     __tablename__ = "instruments"
     __table_args__ = (
         UniqueConstraint("asset_type", "market", "ticker", name="uq_instruments_identity"),
+        CheckConstraint("asset_type IN ('STOCK', 'FUND')", name="asset_type"),
+        CheckConstraint("market IN ('CN')", name="market"),
+        CheckConstraint(
+            "exchange IN ('SSE', 'SZSE', 'BSE', 'FUND_CN')",
+            name="exchange",
+        ),
+        CheckConstraint("currency IN ('CNY')", name="currency"),
         CheckConstraint(
             "ticker = btrim(ticker) AND char_length(ticker) BETWEEN 1 AND 32",
             name="ck_instruments_ticker",
@@ -47,20 +41,23 @@ class Instrument(Base):
             "name = btrim(name) AND char_length(name) BETWEEN 1 AND 160", name="ck_instruments_name"
         ),
         CheckConstraint("char_length(source) BETWEEN 1 AND 80", name="ck_instruments_source"),
+        CheckConstraint(
+            "(asset_type = 'STOCK' AND exchange IN ('SSE', 'SZSE', 'BSE')) "
+            "OR (asset_type = 'FUND' AND exchange = 'FUND_CN')",
+            name="ck_instruments_asset_exchange",
+        ),
         Index("ix_instruments_search", "asset_type", "market", "ticker", "name"),
     )
 
     id: Mapped[UUID] = mapped_column(
         SqlUuid, primary_key=True, server_default=text("gen_random_uuid()")
     )
-    asset_type: Mapped[AssetType] = mapped_column(
-        enum_type(AssetType, "asset_type"), nullable=False
-    )
-    market: Mapped[Market] = mapped_column(enum_type(Market, "market"), nullable=False)
-    exchange: Mapped[Exchange] = mapped_column(enum_type(Exchange, "exchange"), nullable=False)
+    asset_type: Mapped[AssetType] = mapped_column(EnumValueType(AssetType, 16), nullable=False)
+    market: Mapped[Market] = mapped_column(EnumValueType(Market, 16), nullable=False)
+    exchange: Mapped[Exchange] = mapped_column(EnumValueType(Exchange, 16), nullable=False)
     ticker: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
-    currency: Mapped[Currency] = mapped_column(enum_type(Currency, "currency"), nullable=False)
+    currency: Mapped[Currency] = mapped_column(EnumValueType(Currency, 3), nullable=False)
     active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )

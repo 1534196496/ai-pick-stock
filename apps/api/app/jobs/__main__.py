@@ -5,12 +5,14 @@ import asyncio
 import logging
 import signal
 from collections.abc import Callable, Sequence
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.core.database import create_database_engine
-from app.jobs.scheduler import ScheduledJob, WorkerScheduler
+from app.jobs.schedule_config import MarketDataScheduleCache
+from app.jobs.scheduler import SHANGHAI, ScheduledJob, WorkerScheduler, is_time_in_window
 from app.jobs.sync_service import MarketDataSyncService
 from app.modules.market_data.providers.factory import create_provider_bundle
 
@@ -32,6 +34,7 @@ async def _run_scheduler(settings: Settings) -> None:
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     providers = create_provider_bundle(settings)
     service = MarketDataSyncService(engine, session_factory, providers)
+    schedule_cache = MarketDataScheduleCache(session_factory)
     stop = asyncio.Event()
     _install_signal_handlers(stop)
     try:
@@ -40,25 +43,48 @@ async def _run_scheduler(settings: Settings) -> None:
             await stop.wait()
             return
 
+        await schedule_cache.refresh()
+
+        async def sync_official_navs_in_window() -> bool:
+            """只在当前热配置的官方净值窗口内执行自动同步。"""
+            schedule = schedule_cache.current
+            if not is_time_in_window(
+                datetime.now(SHANGHAI).time(),
+                start=schedule.official_nav_window_start,
+                end=schedule.official_nav_window_end,
+            ):
+                return False
+            return await service.sync_official_navs()
+
         jobs = [
+            ScheduledJob.periodic(
+                "schedule-config",
+                schedule_cache.refresh,
+                interval_seconds=10,
+                initial_delay_seconds=10,
+            ),
             ScheduledJob.daily(
                 "instrument-master",
                 service.sync_instruments,
-                hour=4,
-                minute=0,
+                hour=lambda: schedule_cache.current.instrument_sync_time.hour,
+                minute=lambda: schedule_cache.current.instrument_sync_time.minute,
                 initial_delay_seconds=1,
+                reschedule_on_revision=True,
             ),
             ScheduledJob.periodic(
                 "stock-prices",
                 service.sync_stock_prices,
-                interval_seconds=settings.stock_refresh_seconds,
+                interval_seconds=lambda: schedule_cache.current.stock_refresh_seconds,
+                reschedule_on_revision=True,
             ),
-            ScheduledJob.daily(
+            ScheduledJob.windowed_periodic(
                 "fund-official-nav",
-                service.sync_official_navs,
-                hour=22,
-                minute=30,
+                sync_official_navs_in_window,
+                interval_seconds=lambda: schedule_cache.current.official_nav_refresh_seconds,
+                window_start=lambda: schedule_cache.current.official_nav_window_start,
+                window_end=lambda: schedule_cache.current.official_nav_window_end,
                 initial_delay_seconds=15,
+                reschedule_on_revision=True,
             ),
         ]
         if settings.fund_estimate_enabled:
@@ -66,11 +92,15 @@ async def _run_scheduler(settings: Settings) -> None:
                 ScheduledJob.periodic(
                     "fund-estimated-nav",
                     service.sync_estimated_navs,
-                    interval_seconds=settings.stock_refresh_seconds,
+                    interval_seconds=lambda: schedule_cache.current.fund_estimate_refresh_seconds,
                     initial_delay_seconds=15,
+                    reschedule_on_revision=True,
                 )
             )
-        await WorkerScheduler(jobs).run(stop)
+        await WorkerScheduler(
+            jobs,
+            schedule_revision=lambda: schedule_cache.version,
+        ).run(stop)
     finally:
         await providers.close()
         await engine.dispose()

@@ -15,9 +15,10 @@ from app.modules.auth.mailer import PasswordResetMailer
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.service import AuthService
 from app.modules.instruments.repository import InstrumentRepository
+from app.modules.market_data.domain import MarketDataScheduleRecord
+from app.modules.market_data.providers.contracts import FundNavProvider
 from app.modules.market_data.repository import MarketDataRepository
 from app.modules.portfolios.position_repository import PositionRepository
-from app.modules.portfolios.repository import InvestmentAccountRepository
 from app.modules.watchlists.repository import WatchlistRepository
 
 
@@ -34,42 +35,42 @@ async def get_database_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 def get_auth_repository(
-    session: Annotated[AsyncSession, Depends(get_database_session)],
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
 ) -> AuthRepository:
     """把请求级数据库会话绑定到认证 Repository。"""
     return AuthRepository(session)
 
 
-def get_investment_account_repository(
-    session: Annotated[AsyncSession, Depends(get_database_session)],
-) -> InvestmentAccountRepository:
-    """把请求事务绑定到投资账户 Repository。"""
-    return InvestmentAccountRepository(session)
-
-
 def get_instrument_repository(
-    session: Annotated[AsyncSession, Depends(get_database_session)],
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
 ) -> InstrumentRepository:
     """把请求事务绑定到资产主数据 Repository。"""
     return InstrumentRepository(session)
 
 
 def get_market_data_repository(
-    session: Annotated[AsyncSession, Depends(get_database_session)],
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
 ) -> MarketDataRepository:
     """把请求事务绑定到行情读取 Repository。"""
     return MarketDataRepository(session)
 
 
+async def get_market_data_schedule_record(
+    repository: Annotated[MarketDataRepository, Depends(get_market_data_repository)],
+) -> MarketDataScheduleRecord:
+    """读取数据库中的动态行情调度配置供请求期新鲜度规则使用。"""
+    return await repository.get_schedule()
+
+
 def get_position_repository(
-    session: Annotated[AsyncSession, Depends(get_database_session)],
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
 ) -> PositionRepository:
     """把请求事务绑定到用户隔离的持仓 Repository。"""
     return PositionRepository(session)
 
 
 def get_watchlist_repository(
-    session: Annotated[AsyncSession, Depends(get_database_session)],
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
 ) -> WatchlistRepository:
     """把请求事务绑定到用户隔离的自选 Repository。"""
     return WatchlistRepository(session)
@@ -79,6 +80,12 @@ def get_settings(request: Request) -> Settings:
     """返回应用启动时已完成边界校验的配置。"""
     settings: Settings = request.app.state.settings
     return settings
+
+
+def get_fund_nav_provider(request: Request) -> FundNavProvider:
+    """返回应用级共享基金行情 Provider。"""
+    provider: object = request.app.state.market_data_providers.fund
+    return cast(FundNavProvider, provider)
 
 
 def get_session_cookie_policy(request: Request) -> SessionCookiePolicy:

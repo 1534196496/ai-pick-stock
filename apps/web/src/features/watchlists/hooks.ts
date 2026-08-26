@@ -10,6 +10,7 @@ import {
   updateWatchlistGroup,
   updateWatchlistItem,
   type WatchlistGroup,
+  type WatchlistGroupList,
   type WatchlistItem,
 } from './api';
 
@@ -70,7 +71,16 @@ export function useDeleteWatchlistGroup() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: deleteWatchlistGroup,
-    onSuccess: () => invalidateWatchlists(client),
+    onSuccess: async (_data, groupId) => {
+      await client.cancelQueries({ queryKey: watchlistItemsQueryKey(groupId) });
+      client.setQueryData<WatchlistGroupList>(watchlistGroupsQueryKey, (current) => (
+        current === undefined
+          ? current
+          : { ...current, items: current.items.filter((group) => group.id !== groupId) }
+      ));
+      client.removeQueries({ queryKey: watchlistItemsQueryKey(groupId), exact: true });
+      await client.invalidateQueries({ queryKey: watchlistGroupsQueryKey });
+    },
   });
 }
 

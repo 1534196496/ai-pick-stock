@@ -4,6 +4,7 @@ import json
 import math
 import re
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
@@ -155,6 +156,7 @@ def _parse_tencent_quote(line: str) -> StockPriceSnapshot:
             {
                 "ticker": fields[2],
                 "value": fields[3],
+                "change_rate": _change_rate(fields[3], fields[4]),
                 "as_of_at": as_of,
                 "fetched_at": datetime.now(UTC),
                 "source": "tencent_stock_quote",
@@ -186,6 +188,7 @@ def _parse_sina_quote(line: str) -> StockPriceSnapshot:
             {
                 "ticker": ticker,
                 "value": fields[3],
+                "change_rate": _change_rate(fields[3], fields[2]),
                 "as_of_at": as_of,
                 "fetched_at": datetime.now(UTC),
                 "source": "sina_stock_quote",
@@ -193,6 +196,18 @@ def _parse_sina_quote(line: str) -> StockPriceSnapshot:
         )
     except (ValueError, ValidationError) as error:
         raise ProviderPayloadError("新浪行情字段校验失败") from error
+
+
+def _change_rate(current: str, previous_close: str) -> Decimal:
+    """使用最新价和昨收价计算比值口径的今日涨跌率。"""
+    try:
+        current_value = Decimal(current)
+        previous_value = Decimal(previous_close)
+        if previous_value <= 0:
+            raise ValueError("昨收价必须大于零")
+        return (current_value - previous_value) / previous_value
+    except (InvalidOperation, ValueError) as error:
+        raise ProviderPayloadError("行情涨跌率字段异常") from error
 
 
 def _vendor_symbol(request: StockQuoteRequest) -> str:

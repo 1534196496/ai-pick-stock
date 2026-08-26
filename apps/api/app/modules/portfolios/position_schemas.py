@@ -10,7 +10,7 @@ from pydantic import BeforeValidator, Field, PlainSerializer, WithJsonSchema, mo
 from app.api.schemas import ApiModel
 from app.modules.instruments.enums import AssetType, Currency, Exchange, Market
 from app.modules.instruments.schemas import LatestPriceResponse
-from app.modules.portfolios.enums import CostInputMode, PositionInputMode
+from app.modules.portfolios.enums import CostInputMode, PositionInputMode, PositionStatus
 from app.modules.portfolios.valuation import ValuationStatus
 
 
@@ -49,6 +49,7 @@ class PositionValuationResponse(ApiModel):
 
     price: LatestPriceResponse
     market_value: FinancialDecimal
+    today_profit: FinancialDecimal | None = None
     holding_profit: FinancialDecimal
     return_rate: FinancialDecimal
 
@@ -58,29 +59,24 @@ class EstimatedFundValuationResponse(ApiModel):
 
     price: LatestPriceResponse
     market_value: FinancialDecimal
+    today_profit: FinancialDecimal | None = None
     holding_profit: FinancialDecimal
+    return_rate: FinancialDecimal
 
 
 class PositionResponse(ApiModel):
-    """返回原始输入、规范化值、资产身份和乐观锁版本。"""
+    """返回精简持仓投影、动态估值、资产身份和乐观锁版本。"""
 
     id: UUID
-    account_id: UUID
+    group_id: UUID
     instrument: PositionInstrumentResponse
-    input_mode: PositionInputMode
-    cost_input_mode: CostInputMode | None
-    input_date: date
-    input_quantity: FinancialDecimal | None
-    input_total_cost: FinancialDecimal | None
-    input_average_cost: FinancialDecimal | None
-    input_current_value: FinancialDecimal | None
-    input_holding_profit: FinancialDecimal | None
     quantity: FinancialDecimal | None
     total_cost: FinancialDecimal
     average_cost: FinancialDecimal | None
-    quantity_estimated: bool
-    quantity_basis_nav: FinancialDecimal | None
-    quantity_basis_nav_date: date | None
+    realized_profit: FinancialDecimal
+    status: PositionStatus
+    first_trade_date: date
+    last_trade_date: date
     valuation: PositionValuationResponse | None = None
     estimated_valuation: EstimatedFundValuationResponse | None = None
     version: int
@@ -100,7 +96,7 @@ class PositionListResponse(ApiModel):
 class PositionSummaryResponse(ApiModel):
     """返回组合成本、价格完整性和可选权威估值汇总。"""
 
-    account_id: UUID | None
+    group_id: UUID | None
     status: ValuationStatus
     position_count: int
     priced_position_count: int
@@ -110,6 +106,12 @@ class PositionSummaryResponse(ApiModel):
     market_value: FinancialDecimal | None
     holding_profit: FinancialDecimal | None
     return_rate: FinancialDecimal | None
+    intraday_market_value: FinancialDecimal | None
+    intraday_holding_profit: FinancialDecimal | None
+    intraday_return_rate: FinancialDecimal | None
+    today_profit: FinancialDecimal | None = None
+    today_profit_position_count: int = 0
+    estimated_fund_position_count: int
     calculated_at: datetime
 
 
@@ -117,7 +119,7 @@ class CreateStockPositionRequest(ApiModel):
     """接收股票数量及总成本或平均成本二选一输入。"""
 
     input_mode: Literal[PositionInputMode.STOCK_SHARES]
-    account_id: UUID
+    group_id: UUID
     instrument_id: UUID
     input_date: date
     quantity: FinancialDecimal
@@ -142,7 +144,7 @@ class UpdateStockPositionRequest(ApiModel):
 
     input_mode: Literal[PositionInputMode.STOCK_SHARES]
     version: int = Field(ge=1)
-    account_id: UUID | None = None
+    group_id: UUID | None = None
     input_date: date | None = None
     quantity: FinancialDecimal | None = None
     cost_input_mode: CostInputMode | None = None
@@ -153,7 +155,7 @@ class UpdateStockPositionRequest(ApiModel):
     def validate_patch(self) -> "UpdateStockPositionRequest":
         """拒绝空 PATCH、显式清空和互相冲突的成本字段。"""
         editable = {
-            "account_id",
+            "group_id",
             "input_date",
             "quantity",
             "cost_input_mode",
@@ -167,12 +169,8 @@ class UpdateStockPositionRequest(ApiModel):
             raise ValueError("持仓字段不能显式清空")
         if self.total_cost is not None and self.average_cost is not None:
             raise ValueError("总成本和平均成本只能填写一项")
-        if (
-            self.cost_input_mode == CostInputMode.TOTAL_COST
-            and self.average_cost is not None
-        ) or (
-            self.cost_input_mode == CostInputMode.AVERAGE_COST
-            and self.total_cost is not None
+        if (self.cost_input_mode == CostInputMode.TOTAL_COST and self.average_cost is not None) or (
+            self.cost_input_mode == CostInputMode.AVERAGE_COST and self.total_cost is not None
         ):
             raise ValueError("成本输入方式与填写字段不一致")
         return self
@@ -182,7 +180,7 @@ class CreateFundAmountPositionRequest(ApiModel):
     """接收基金当前金额和可正可负的持有收益。"""
 
     input_mode: Literal[PositionInputMode.FUND_AMOUNT]
-    account_id: UUID
+    group_id: UUID
     instrument_id: UUID
     input_date: date
     current_value: FinancialDecimal
@@ -193,7 +191,7 @@ class CreateFundSharesPositionRequest(ApiModel):
     """接收基金份额及总成本或平均成本二选一输入。"""
 
     input_mode: Literal[PositionInputMode.FUND_SHARES]
-    account_id: UUID
+    group_id: UUID
     instrument_id: UUID
     input_date: date
     quantity: FinancialDecimal
@@ -218,7 +216,7 @@ class UpdateFundAmountPositionRequest(ApiModel):
 
     input_mode: Literal[PositionInputMode.FUND_AMOUNT]
     version: int = Field(ge=1)
-    account_id: UUID | None = None
+    group_id: UUID | None = None
     input_date: date | None = None
     current_value: FinancialDecimal | None = None
     holding_profit: FinancialDecimal | None = None
@@ -226,7 +224,7 @@ class UpdateFundAmountPositionRequest(ApiModel):
     @model_validator(mode="after")
     def validate_patch(self) -> "UpdateFundAmountPositionRequest":
         """拒绝空 PATCH 或显式清空基金金额字段。"""
-        editable = {"account_id", "input_date", "current_value", "holding_profit"}
+        editable = {"group_id", "input_date", "current_value", "holding_profit"}
         changed = self.model_fields_set & editable
         if not changed:
             raise ValueError("至少提供一个待修改字段")
@@ -240,7 +238,7 @@ class UpdateFundSharesPositionRequest(ApiModel):
 
     input_mode: Literal[PositionInputMode.FUND_SHARES]
     version: int = Field(ge=1)
-    account_id: UUID | None = None
+    group_id: UUID | None = None
     input_date: date | None = None
     quantity: FinancialDecimal | None = None
     cost_input_mode: CostInputMode | None = None
@@ -251,7 +249,7 @@ class UpdateFundSharesPositionRequest(ApiModel):
     def validate_patch(self) -> "UpdateFundSharesPositionRequest":
         """拒绝空 PATCH、显式清空和互相冲突的成本字段。"""
         editable = {
-            "account_id",
+            "group_id",
             "input_date",
             "quantity",
             "cost_input_mode",
@@ -265,12 +263,8 @@ class UpdateFundSharesPositionRequest(ApiModel):
             raise ValueError("持仓字段不能显式清空")
         if self.total_cost is not None and self.average_cost is not None:
             raise ValueError("总成本和平均成本只能填写一项")
-        if (
-            self.cost_input_mode == CostInputMode.TOTAL_COST
-            and self.average_cost is not None
-        ) or (
-            self.cost_input_mode == CostInputMode.AVERAGE_COST
-            and self.total_cost is not None
+        if (self.cost_input_mode == CostInputMode.TOTAL_COST and self.average_cost is not None) or (
+            self.cost_input_mode == CostInputMode.AVERAGE_COST and self.total_cost is not None
         ):
             raise ValueError("成本输入方式与填写字段不一致")
         return self

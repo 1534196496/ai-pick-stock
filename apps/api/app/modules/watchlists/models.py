@@ -22,24 +22,24 @@ from app.core.database import Base
 
 
 class WatchlistGroup(Base):
-    """保存用户自选分组、默认标记、排序和乐观锁版本。"""
+    """保存同时承载持仓和自选标的的用户组合分组。"""
 
-    __tablename__ = "watchlist_groups"
+    __tablename__ = "portfolio_groups"
     __table_args__ = (
-        UniqueConstraint("user_id", "name", name="uq_watchlist_groups_user_name"),
+        UniqueConstraint("user_id", "name", name="uq_portfolio_groups_user_name"),
         CheckConstraint(
             "name = btrim(name) AND char_length(name) BETWEEN 1 AND 80",
-            name="ck_watchlist_groups_name",
+            name="ck_portfolio_groups_name",
         ),
-        CheckConstraint("sort_order >= 0", name="ck_watchlist_groups_sort_order"),
-        CheckConstraint("version >= 1", name="ck_watchlist_groups_version"),
+        CheckConstraint("sort_order >= 0", name="ck_portfolio_groups_sort_order"),
+        CheckConstraint("version >= 1", name="ck_portfolio_groups_version"),
         Index(
-            "uq_watchlist_groups_one_default",
+            "uq_portfolio_groups_one_default",
             "user_id",
             unique=True,
             postgresql_where=text("is_default"),
         ),
-        Index("ix_watchlist_groups_user_sort", "user_id", "sort_order", "created_at", "id"),
+        Index("ix_portfolio_groups_user_sort", "user_id", "sort_order", "created_at", "id"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -92,7 +92,7 @@ class WatchlistItem(Base):
     )
     group_id: Mapped[UUID] = mapped_column(
         SqlUuid,
-        ForeignKey("watchlist_groups.id", ondelete="RESTRICT"),
+        ForeignKey("portfolio_groups.id", ondelete="RESTRICT"),
         nullable=False,
     )
     instrument_id: Mapped[UUID] = mapped_column(

@@ -4,7 +4,6 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -14,13 +13,6 @@ from app.modules.market_data.enums import SyncJobType, SyncStatus
 from app.modules.market_data.providers.factory import ProviderBundle
 from app.modules.market_data.providers.schemas import ProviderInstrument
 from app.modules.market_data.repository import AdvisoryLock, MarketDataRepository
-from app.modules.portfolios.money import (
-    MAX_AMOUNT,
-    MAX_QUANTITY,
-    DecimalRuleError,
-    calculate_decimal,
-)
-from app.modules.portfolios.position_repository import PositionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -111,19 +103,11 @@ class MarketDataSyncService:
         tickers = await self._active_fund_tickers()
 
         async def collect() -> CollectedSync:
-            snapshots = (
-                await self._providers.fund.fetch_official_navs(tickers) if tickers else []
-            )
+            snapshots = await self._providers.fund.fetch_official_navs(tickers) if tickers else []
 
             async def persist(session: AsyncSession) -> int:
                 """幂等写入官方单位净值。"""
-                market_data = MarketDataRepository(session)
-                count = await market_data.upsert_official_navs(snapshots)
-                await _reconcile_pending_fund_amounts(
-                    positions=PositionRepository(session),
-                    market_data=market_data,
-                )
-                return count
+                return await MarketDataRepository(session).upsert_official_navs(snapshots)
 
             return CollectedSync(persist, max(0, len(tickers) - len(snapshots)))
 
@@ -218,48 +202,3 @@ def _sync_status(succeeded_count: int, failed_count: int) -> SyncStatus:
     if succeeded_count > 0:
         return SyncStatus.PARTIAL
     return SyncStatus.FAILED
-
-
-async def _reconcile_pending_fund_amounts(
-    *,
-    positions: PositionRepository,
-    market_data: MarketDataRepository,
-) -> int:
-    """使用录入日当天或此前最近的官方净值补算待处理基金份额。"""
-    reconciled = 0
-    skipped = 0
-    for position in await positions.list_pending_fund_amounts():
-        price = await market_data.latest_official_nav_on_or_before(
-            instrument_id=position.instrument_id,
-            nav_date=position.input_date,
-        )
-        if price is None or price.as_of_date is None:
-            continue
-        try:
-            quantity = calculate_decimal(
-                position.current_value / price.value,
-                maximum=MAX_QUANTITY,
-                field="推算份额",
-            )
-            average_cost = calculate_decimal(
-                position.total_cost / quantity,
-                maximum=MAX_AMOUNT,
-                field="平均成本",
-            )
-        except DecimalRuleError:
-            skipped += 1
-            continue
-        reconciled += int(
-            await positions.apply_fund_amount_basis(
-                position_id=position.id,
-                version=position.version,
-                quantity=quantity,
-                average_cost=average_cost,
-                nav=price.value,
-                nav_date=price.as_of_date,
-                changed_at=datetime.now(UTC),
-            )
-        )
-    if skipped:
-        logger.warning("基金待补份额超出计算范围 skipped_count=%s", skipped)
-    return reconciled

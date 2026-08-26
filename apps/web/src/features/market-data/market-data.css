@@ -1,0 +1,168 @@
+.market-data-dialog {
+  width: min(calc(100% - 2rem), 48rem);
+  max-height: min(88vh, 52rem);
+  padding: var(--space-6);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.market-data-dialog::backdrop {
+  background: rgb(19 35 29 / 40%);
+}
+
+.schedule-form,
+.manual-sync,
+.job-history {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.schedule-form {
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--line);
+}
+
+.schedule-form__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.schedule-form label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.schedule-form select,
+.schedule-form input {
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.schedule-form__footer,
+.manual-sync__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.schedule-form__footer > span,
+.market-data-status,
+.manual-sync p,
+.market-data-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.manual-sync {
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.manual-sync h3,
+.job-history h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.manual-sync__actions {
+  justify-content: flex-start;
+}
+
+.secondary-button {
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.market-data-note {
+  padding: var(--space-3) var(--space-4);
+  border-left: 0.1875rem solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+}
+
+.job-history {
+  padding-top: var(--space-6);
+}
+
+.job-history ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 2.75rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+
+.job-history li > span:first-child {
+  color: var(--muted);
+}
+
+.job-history strong {
+  color: var(--ink);
+}
+
+.job-result--succeeded {
+  color: var(--loss);
+}
+
+.job-result--failed,
+.job-result--partial {
+  color: var(--gain);
+}
+
+@media (max-width: 45rem) {
+  .market-data-dialog {
+    padding: var(--space-5);
+  }
+
+  .schedule-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-form__footer {
+    align-items: stretch;
+  }
+
+  .schedule-form__footer .primary-button {
+    width: 100%;
+  }
+
+  .job-history li {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3) 0;
+  }
+}

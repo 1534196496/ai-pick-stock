@@ -23,14 +23,15 @@ const SOURCE_LABEL: Record<string, string> = {
   eastmoney_fund_official_bulk: '天天基金官方净值',
   eastmoney_fund_official_single: '天天基金官方净值',
   eastmoney_fund_estimate_single: '东方财富估算',
+  eastmoney_fund_estimate_bulk: '天天基金盘中估算',
 };
 
-/** 在不使用浮点运算的前提下整理后端十进制字符串。 */
+/** 在不使用浮点运算的前提下把行情值限制为最多四位小数。 */
 function formatDecimal(value: string): string {
   const [rawInteger, rawFraction = ''] = value.split('.', 2);
   const sign = rawInteger.startsWith('-') ? '-' : '';
   const integer = rawInteger.replace('-', '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const fraction = rawFraction.replace(/0+$/, '');
+  const fraction = rawFraction.slice(0, 4).replace(/0+$/, '');
   return `${sign}${integer}${fraction ? `.${fraction}` : ''}`;
 }
 

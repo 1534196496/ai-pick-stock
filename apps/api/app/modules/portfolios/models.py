@@ -1,15 +1,13 @@
-"""投资账户持久化模型。"""
+"""精简持仓投影、交易事实和每日收益快照模型。"""
 
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Date,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -22,128 +20,48 @@ from sqlalchemy import (
 from sqlalchemy import Uuid as SqlUuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.database import Base
-from app.modules.portfolios.enums import CostInputMode, PositionInputMode
-
-
-def position_enum(
-    enum_class: type[PositionInputMode | CostInputMode],
-    name: str,
-) -> Enum:
-    """创建以稳定字符串值持久化的持仓枚举映射。"""
-    return Enum(
-        enum_class,
-        name=name,
-        native_enum=False,
-        create_constraint=False,
-        validate_strings=True,
-        values_callable=lambda members: [member.value for member in members],
-    )
-
-
-class InvestmentAccount(Base):
-    """保存用户自定义的投资账户、排序与乐观锁版本。"""
-
-    __tablename__ = "investment_accounts"
-    __table_args__ = (
-        UniqueConstraint("user_id", "name", name="uq_investment_accounts_user_name"),
-        CheckConstraint(
-            "name = btrim(name) AND char_length(name) BETWEEN 1 AND 80",
-            name="ck_investment_accounts_name",
-        ),
-        CheckConstraint("base_currency = 'CNY'", name="ck_investment_accounts_currency"),
-        CheckConstraint("sort_order >= 0", name="ck_investment_accounts_sort_order"),
-        CheckConstraint("version >= 1", name="ck_investment_accounts_version"),
-        Index("ix_investment_accounts_user_sort", "user_id", "sort_order", "created_at"),
-    )
-
-    id: Mapped[UUID] = mapped_column(
-        SqlUuid, primary_key=True, server_default=text("gen_random_uuid()")
-    )
-    user_id: Mapped[UUID] = mapped_column(
-        SqlUuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    name: Mapped[str] = mapped_column(String(80), nullable=False)
-    base_currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="CNY", server_default="CNY"
-    )
-    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
-    )
+from app.core.database import Base, EnumValueType
+from app.modules.portfolios.enums import PositionStatus, TransactionStatus, TransactionType
 
 
 class Position(Base):
-    """保存持仓原始输入、规范化结果、推算依据和乐观锁版本。"""
+    """保存由交易事实汇总得到的当前持仓投影。"""
 
     __tablename__ = "positions"
     __table_args__ = (
-        UniqueConstraint("account_id", "instrument_id", name="uq_positions_account_instrument"),
+        UniqueConstraint("group_id", "instrument_id", name="uq_positions_group_instrument"),
         CheckConstraint("version >= 1", name="ck_positions_version"),
-        CheckConstraint(
-            "input_quantity IS NULL OR input_quantity > 0",
-            name="ck_positions_input_quantity",
-        ),
-        CheckConstraint(
-            "input_total_cost IS NULL OR input_total_cost > 0",
-            name="ck_positions_input_total_cost",
-        ),
-        CheckConstraint(
-            "input_average_cost IS NULL OR input_average_cost > 0",
-            name="ck_positions_input_average_cost",
-        ),
-        CheckConstraint(
-            "input_current_value IS NULL OR input_current_value > 0",
-            name="ck_positions_input_current_value",
-        ),
-        CheckConstraint("quantity IS NULL OR quantity > 0", name="ck_positions_quantity"),
-        CheckConstraint("total_cost > 0", name="ck_positions_total_cost"),
+        CheckConstraint("quantity IS NULL OR quantity >= 0", name="ck_positions_quantity"),
+        CheckConstraint("total_cost >= 0", name="ck_positions_total_cost"),
         CheckConstraint(
             "average_cost IS NULL OR average_cost > 0",
             name="ck_positions_average_cost",
         ),
         CheckConstraint(
-            "(quantity IS NULL AND average_cost IS NULL) OR "
-            "(quantity IS NOT NULL AND average_cost IS NOT NULL)",
-            name="ck_positions_quantity_average_cost",
+            "realized_profit BETWEEN -9999999999999999 AND 9999999999999999",
+            name="ck_positions_realized_profit",
         ),
         CheckConstraint(
-            "(quantity_estimated IS FALSE AND quantity_basis_nav IS NULL "
-            "AND quantity_basis_nav_date IS NULL "
-            "AND (input_mode <> 'FUND_AMOUNT' OR quantity IS NULL)) OR "
-            "(quantity_estimated IS TRUE AND input_mode = 'FUND_AMOUNT' "
-            "AND quantity IS NOT NULL AND quantity_basis_nav > 0 "
-            "AND quantity_basis_nav_date IS NOT NULL)",
-            name="ck_positions_quantity_estimation",
+            "status IN ('OPEN', 'CLOSED', 'PENDING')",
+            name="ck_positions_status",
         ),
         CheckConstraint(
-            "((input_mode IN ('STOCK_SHARES', 'FUND_SHARES')) "
-            "AND input_quantity IS NOT NULL AND input_current_value IS NULL "
-            "AND input_holding_profit IS NULL "
-            "AND ((cost_input_mode = 'TOTAL_COST' AND input_total_cost IS NOT NULL "
-            "AND input_average_cost IS NULL) OR "
-            "(cost_input_mode = 'AVERAGE_COST' AND input_average_cost IS NOT NULL "
-            "AND input_total_cost IS NULL))) OR "
-            "(input_mode = 'FUND_AMOUNT' AND cost_input_mode IS NULL "
-            "AND input_quantity IS NULL AND input_total_cost IS NULL "
-            "AND input_average_cost IS NULL AND input_current_value IS NOT NULL "
-            "AND input_holding_profit IS NOT NULL)",
-            name="ck_positions_input_shape",
+            "(status = 'PENDING' AND quantity IS NULL AND average_cost IS NULL) OR "
+            "(status = 'OPEN' AND quantity > 0 AND average_cost > 0) OR "
+            "(status = 'CLOSED' AND quantity = 0 AND total_cost = 0 "
+            "AND average_cost IS NULL)",
+            name="ck_positions_state",
         ),
-        Index("ix_positions_account_created", "account_id", "created_at", "id"),
+        Index("ix_positions_group_created", "group_id", "created_at", "id"),
         Index("ix_positions_instrument", "instrument_id"),
     )
 
     id: Mapped[UUID] = mapped_column(
         SqlUuid, primary_key=True, server_default=text("gen_random_uuid()")
     )
-    account_id: Mapped[UUID] = mapped_column(
+    group_id: Mapped[UUID] = mapped_column(
         SqlUuid,
-        ForeignKey("investment_accounts.id", ondelete="RESTRICT"),
+        ForeignKey("portfolio_groups.id", ondelete="RESTRICT"),
         nullable=False,
     )
     instrument_id: Mapped[UUID] = mapped_column(
@@ -151,34 +69,122 @@ class Position(Base):
         ForeignKey("instruments.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    input_mode: Mapped[PositionInputMode] = mapped_column(
-        position_enum(PositionInputMode, "position_input_mode"),
-        nullable=False,
-    )
-    cost_input_mode: Mapped[CostInputMode | None] = mapped_column(
-        position_enum(CostInputMode, "cost_input_mode")
-    )
-    input_date: Mapped[date] = mapped_column(Date, nullable=False)
-    input_quantity: Mapped[Decimal | None] = mapped_column(Numeric(28, 8))
-    input_total_cost: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
-    input_average_cost: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
-    input_current_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
-    input_holding_profit: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
     quantity: Mapped[Decimal | None] = mapped_column(Numeric(28, 8))
     total_cost: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     average_cost: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
-    quantity_estimated: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default=text("false"),
+    realized_profit: Mapped[Decimal] = mapped_column(
+        Numeric(24, 8), nullable=False, default=Decimal("0"), server_default="0"
     )
-    quantity_basis_nav: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
-    quantity_basis_nav_date: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[PositionStatus] = mapped_column(
+        EnumValueType(PositionStatus, 16),
+        nullable=False,
+        default=PositionStatus.OPEN,
+        server_default=PositionStatus.OPEN.value,
+    )
+    first_trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    last_trade_date: Mapped[date] = mapped_column(Date, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PositionTransaction(Base):
+    """保存可重放的持仓数量和成本变化事实。"""
+
+    __tablename__ = "position_transactions"
+    __table_args__ = (
+        CheckConstraint(
+            "transaction_type IN ('OPENING', 'BUY', 'SELL', 'DIVIDEND', 'FEE', "
+            "'ADJUSTMENT', 'TRANSFER_IN', 'TRANSFER_OUT')",
+            name="ck_position_transactions_type",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'CONFIRMED', 'CANCELLED')",
+            name="ck_position_transactions_status",
+        ),
+        CheckConstraint("fee_amount >= 0", name="ck_position_transactions_fee"),
+        Index(
+            "ix_position_transactions_position_date",
+            "position_id",
+            "trade_date",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        SqlUuid, primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    position_id: Mapped[UUID] = mapped_column(
+        SqlUuid,
+        ForeignKey("positions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_type: Mapped[TransactionType] = mapped_column(
+        EnumValueType(TransactionType, 24), nullable=False
+    )
+    status: Mapped[TransactionStatus] = mapped_column(
+        EnumValueType(TransactionStatus, 16), nullable=False
+    )
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    quantity_change: Mapped[Decimal | None] = mapped_column(Numeric(28, 8))
+    cash_amount: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
+    fee_amount: Mapped[Decimal] = mapped_column(
+        Numeric(24, 8), nullable=False, default=Decimal("0"), server_default="0"
+    )
+    note: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class PositionDailySnapshot(Base):
+    """保存每日收益曲线所需的最终或估算持仓快照。"""
+
+    __tablename__ = "position_daily_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "position_id",
+            "snapshot_date",
+            "valuation_type",
+            name="uq_position_daily_snapshots_position_date_type",
+        ),
+        CheckConstraint(
+            "quantity >= 0 AND unit_price > 0 AND market_value >= 0 AND total_cost >= 0",
+            name="ck_position_daily_snapshots_values",
+        ),
+        CheckConstraint(
+            "valuation_type IN ('OFFICIAL', 'ESTIMATED')",
+            name="ck_position_daily_snapshots_type",
+        ),
+        Index(
+            "ix_position_daily_snapshots_position_date",
+            "position_id",
+            "snapshot_date",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        SqlUuid, primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    position_id: Mapped[UUID] = mapped_column(
+        SqlUuid,
+        ForeignKey("positions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
+    valuation_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(28, 8), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
+    market_value: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
+    total_cost: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
+    daily_profit: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
+    daily_return_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 8))
+    holding_profit: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
+    holding_return_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 8))
+    calculated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )

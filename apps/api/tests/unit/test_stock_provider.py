@@ -20,21 +20,34 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
-def tencent_quote(ticker: str, value: str, timestamp: str) -> bytes:
+def tencent_quote(
+    ticker: str,
+    value: str,
+    timestamp: str,
+    previous_close: str = "1300.00",
+) -> bytes:
     """构造腾讯波浪线行情固定样本。"""
     fields = [""] * 31
     fields[0] = "1"
     fields[1] = "虚构股票"
     fields[2] = ticker
     fields[3] = value
+    fields[4] = previous_close
     fields[30] = timestamp
     return f'v_sh{ticker}="{"~".join(fields)}";'.encode("gb18030")
 
 
-def sina_quote(ticker: str, value: str, day: str, clock: str) -> bytes:
+def sina_quote(
+    ticker: str,
+    value: str,
+    day: str,
+    clock: str,
+    previous_close: str = "1300.00",
+) -> bytes:
     """构造新浪逗号行情固定样本。"""
     fields = [""] * 32
     fields[0] = "虚构股票"
+    fields[2] = previous_close
     fields[3] = value
     fields[30] = day
     fields[31] = clock
@@ -82,6 +95,9 @@ async def test_tencent_quote_converts_china_local_time_to_utc() -> None:
     )
     await client.aclose()
     assert snapshots[0].value == Decimal("1304.66")
+    assert snapshots[0].change_rate == (Decimal("1304.66") - Decimal("1300.00")) / Decimal(
+        "1300.00"
+    )
     assert snapshots[0].as_of_at == datetime(2026, 8, 24, 7, 0, tzinfo=UTC)
     assert snapshots[0].source == "tencent_stock_quote"
 

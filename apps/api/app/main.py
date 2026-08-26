@@ -20,10 +20,10 @@ from app.core.middleware import (
 from app.modules.auth.mailer import SmtpPasswordResetMailer
 from app.modules.auth.router import router as auth_router
 from app.modules.instruments.router import router as instrument_router
+from app.modules.market_data.providers.factory import create_provider_bundle
 from app.modules.market_data.router import router as market_data_router
 from app.modules.portfolios.position_router import router as position_router
 from app.modules.portfolios.position_router import summary_router as position_summary_router
-from app.modules.portfolios.router import router as portfolio_router
 from app.modules.watchlists.router import router as watchlist_router
 
 
@@ -67,9 +67,12 @@ def create_app(
             and settings.smtp_from_email is not None
             else None
         )
+        providers = create_provider_bundle(settings)
+        application.state.market_data_providers = providers
         try:
             yield
         finally:
+            await providers.close()
             await engine.dispose()
 
     application = FastAPI(
@@ -85,7 +88,6 @@ def create_app(
         ),
     )
     application.include_router(auth_router, prefix="/api/v1")
-    application.include_router(portfolio_router, prefix="/api/v1")
     application.include_router(instrument_router, prefix="/api/v1")
     application.include_router(market_data_router, prefix="/api/v1")
     application.include_router(position_router, prefix="/api/v1")

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { ApiClientError } from '../../shared/api/client';
 import { useModalDialog } from '../../shared/ui/useModalDialog';
-import type { InvestmentAccount } from '../accounts/api';
+import type { WatchlistGroup } from '../watchlists/api';
 import type { Instrument } from '../instruments/api';
 import { getPosition, type Position } from './api';
 import { divideDecimal, multiplyDecimal } from './decimal';
@@ -12,8 +12,8 @@ import { useCreatePosition, useUpdatePosition } from './hooks';
 
 interface StockPositionDialogProps {
   instrument: Pick<Instrument, 'id' | 'name' | 'ticker' | 'exchange'>;
-  accounts: InvestmentAccount[];
-  defaultAccountId: string | null;
+  groups: WatchlistGroup[];
+  defaultGroupId: string | null;
   position?: Position;
   onExistingPosition?: (position: Position) => void;
   onClose: () => void;
@@ -34,8 +34,8 @@ function shanghaiToday(): string {
 /** 录入股票数量和一种成本，并展示不依赖浮点数的计算预览。 */
 export function StockPositionDialog({
   instrument,
-  accounts,
-  defaultAccountId,
+  groups,
+  defaultGroupId,
   position,
   onExistingPosition,
   onClose,
@@ -45,17 +45,15 @@ export function StockPositionDialog({
   const createMutation = useCreatePosition();
   const updateMutation = useUpdatePosition();
   const mutation = position === undefined ? createMutation : updateMutation;
-  const initialCostMode = position?.costInputMode ?? 'TOTAL_COST';
-  const [accountId, setAccountId] = useState(
-    position?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? '',
+  const initialCostMode = 'TOTAL_COST' as const;
+  const [groupId, setGroupId] = useState(
+    position?.groupId ?? defaultGroupId ?? groups[0]?.id ?? '',
   );
-  const [inputDate, setInputDate] = useState(position?.inputDate ?? shanghaiToday);
-  const [quantity, setQuantity] = useState(position?.inputQuantity ?? '');
+  const [inputDate, setInputDate] = useState(position?.lastTradeDate ?? shanghaiToday);
+  const [quantity, setQuantity] = useState(position?.quantity ?? '');
   const [costMode, setCostMode] = useState<'TOTAL_COST' | 'AVERAGE_COST'>(initialCostMode);
   const [cost, setCost] = useState(
-    initialCostMode === 'AVERAGE_COST'
-      ? position?.inputAverageCost ?? ''
-      : position?.inputTotalCost ?? '',
+    position?.totalCost ?? '',
   );
   const totalPreview = costMode === 'TOTAL_COST' ? cost : multiplyDecimal(quantity, cost);
   const averagePreview = costMode === 'AVERAGE_COST' ? cost : divideDecimal(cost, quantity);
@@ -66,7 +64,7 @@ export function StockPositionDialog({
       if (position === undefined) {
         await createMutation.mutateAsync({
           inputMode: 'STOCK_SHARES',
-          accountId,
+          groupId,
           instrumentId: instrument.id,
           inputDate,
           quantity,
@@ -80,7 +78,7 @@ export function StockPositionDialog({
           input: {
             inputMode: 'STOCK_SHARES',
             version: position.version,
-            accountId,
+            groupId,
             inputDate,
             quantity,
             costInputMode: costMode,
@@ -123,9 +121,9 @@ export function StockPositionDialog({
       </header>
       <form className="position-form" onSubmit={(event) => void submit(event)}>
         <label>
-          <span>投资账户</span>
-          <select required value={accountId} onChange={(event) => setAccountId(event.target.value)}>
-            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          <span>持仓分组</span>
+          <select required value={groupId} onChange={(event) => setGroupId(event.target.value)}>
+            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
         </label>
         <label>
@@ -163,7 +161,7 @@ export function StockPositionDialog({
             重新加载最新持仓
           </button>
         )}
-        <button className="primary-button" disabled={mutation.isPending || accountId === ''} type="submit">
+        <button className="primary-button" disabled={mutation.isPending || groupId === ''} type="submit">
           {mutation.isPending ? '正在保存…' : position === undefined ? '保存持仓' : '保存修改'}
         </button>
       </form>

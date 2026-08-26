@@ -1,10 +1,9 @@
-"""股票持仓输入规范化规则。"""
+"""把不同录入方式规范化为同一种持仓投影。"""
 
-from datetime import date
 from decimal import Decimal
 
 from app.modules.portfolios.domain import PositionDraft
-from app.modules.portfolios.enums import CostInputMode, PositionInputMode
+from app.modules.portfolios.enums import CostInputMode
 from app.modules.portfolios.money import (
     MAX_AMOUNT,
     MAX_QUANTITY,
@@ -31,36 +30,26 @@ class PositionNormalizationError(ValueError):
 
 
 class StockPositionNormalizer:
-    """把股票数量和一种成本输入转换为统一规范化持仓。"""
+    """把股票数量和一种成本输入转换为统一持仓投影。"""
 
     def normalize(self, command: StockPositionCommand) -> PositionDraft:
-        """校验输入形状和精度，并计算缺失的总成本或平均成本。"""
+        """校验输入精度，并计算缺失的总成本或平均成本。"""
         try:
             quantity = require_positive_input(
                 command.quantity,
                 maximum=MAX_QUANTITY,
                 field="持有数量",
             )
-            input_total_cost, input_average_cost, total_cost, average_cost = (
-                self._normalize_cost(command, quantity=quantity)
-            )
+            total_cost, average_cost = self._normalize_cost(command, quantity=quantity)
         except DecimalRuleError as error:
             raise PositionNormalizationError(
                 code="INVALID_POSITION_DECIMAL",
                 message=str(error),
             ) from error
-
         return PositionDraft(
-            account_id=command.account_id,
+            group_id=command.group_id,
             instrument_id=command.instrument_id,
-            input_mode=PositionInputMode.STOCK_SHARES,
-            cost_input_mode=command.cost_input_mode,
-            input_date=command.input_date,
-            input_quantity=quantity,
-            input_total_cost=input_total_cost,
-            input_average_cost=input_average_cost,
-            input_current_value=None,
-            input_holding_profit=None,
+            trade_date=command.input_date,
             quantity=quantity,
             total_cost=total_cost,
             average_cost=average_cost,
@@ -71,7 +60,7 @@ class StockPositionNormalizer:
         command: StockPositionCommand,
         *,
         quantity: Decimal,
-    ) -> tuple[Decimal | None, Decimal | None, Decimal, Decimal]:
+    ) -> tuple[Decimal, Decimal]:
         """要求成本二选一，并计算另一种规范化成本。"""
         if command.cost_input_mode == CostInputMode.TOTAL_COST:
             if command.total_cost is None or command.average_cost is not None:
@@ -89,7 +78,7 @@ class StockPositionNormalizer:
                 maximum=MAX_AMOUNT,
                 field="平均成本",
             )
-            return total_cost, None, total_cost, average_cost
+            return total_cost, average_cost
 
         if command.cost_input_mode == CostInputMode.AVERAGE_COST:
             if command.average_cost is None or command.total_cost is not None:
@@ -107,7 +96,7 @@ class StockPositionNormalizer:
                 maximum=MAX_AMOUNT,
                 field="总成本",
             )
-            return None, average_cost, total_cost, average_cost
+            return total_cost, average_cost
 
         raise PositionNormalizationError(
             code="INVALID_COST_INPUT_MODE",
@@ -116,10 +105,15 @@ class StockPositionNormalizer:
 
 
 class FundAmountPositionNormalizer:
-    """把基金当前金额与持有收益转换为成本和可选推算份额。"""
+    """使用添加时的可用净值把基金金额转换为份额和成本。"""
 
     def normalize(self, command: FundAmountPositionCommand) -> PositionDraft:
-        """使用实际日期官方单位净值推算份额，缺净值时保留金额快照。"""
+        """实时计算基金份额；没有任何可用净值时拒绝保存半成品持仓。"""
+        if command.nav_basis is None:
+            raise PositionNormalizationError(
+                code="FUND_NAV_UNAVAILABLE",
+                message="暂时无法取得基金净值，请稍后重试或改用份额录入",
+            )
         try:
             current_value = require_positive_input(
                 command.current_value,
@@ -136,73 +130,44 @@ class FundAmountPositionNormalizer:
                 maximum=MAX_AMOUNT,
                 field="总成本",
             )
-            quantity, average_cost, basis_nav, basis_date = self._estimate_quantity(
-                command,
-                current_value=current_value,
-                total_cost=total_cost,
+            nav = require_positive_input(
+                command.nav_basis.value,
+                maximum=MAX_AMOUNT,
+                field="基金单位净值",
+            )
+            quantity = calculate_decimal(
+                current_value / nav,
+                maximum=MAX_QUANTITY,
+                field="推算份额",
+            )
+            average_cost = calculate_decimal(
+                total_cost / quantity,
+                maximum=MAX_AMOUNT,
+                field="平均成本",
             )
         except DecimalRuleError as error:
             raise PositionNormalizationError(
                 code="INVALID_POSITION_DECIMAL",
                 message=str(error),
             ) from error
-
         return PositionDraft(
-            account_id=command.account_id,
+            group_id=command.group_id,
             instrument_id=command.instrument_id,
-            input_mode=PositionInputMode.FUND_AMOUNT,
-            cost_input_mode=None,
-            input_date=command.input_date,
-            input_quantity=None,
-            input_total_cost=None,
-            input_average_cost=None,
-            input_current_value=current_value,
-            input_holding_profit=holding_profit,
+            trade_date=command.input_date,
             quantity=quantity,
             total_cost=total_cost,
             average_cost=average_cost,
-            quantity_estimated=quantity is not None,
-            quantity_basis_nav=basis_nav,
-            quantity_basis_nav_date=basis_date,
         )
-
-    @staticmethod
-    def _estimate_quantity(
-        command: FundAmountPositionCommand,
-        *,
-        current_value: Decimal,
-        total_cost: Decimal,
-    ) -> tuple[Decimal | None, Decimal | None, Decimal | None, date | None]:
-        """有官方净值时推算份额和平均成本，否则保持待补份额。"""
-        basis = command.nav_basis
-        if basis is None:
-            return None, None, None, None
-        nav = require_positive_input(
-            basis.value,
-            maximum=MAX_AMOUNT,
-            field="官方单位净值",
-        )
-        quantity = calculate_decimal(
-            current_value / nav,
-            maximum=MAX_QUANTITY,
-            field="推算份额",
-        )
-        average_cost = calculate_decimal(
-            total_cost / quantity,
-            maximum=MAX_AMOUNT,
-            field="平均成本",
-        )
-        return quantity, average_cost, nav, basis.nav_date
 
 
 class FundSharesPositionNormalizer:
-    """把基金份额和一种成本输入转换为精确模式持仓。"""
+    """把基金份额和一种成本输入转换为统一持仓投影。"""
 
     def normalize(self, command: FundSharesPositionCommand) -> PositionDraft:
-        """复用股票成本规则，但保持基金份额录入模式和审计字段。"""
-        stock_draft = StockPositionNormalizer().normalize(
+        """复用份额与成本规则，保留基金自身的资产类型校验边界。"""
+        return StockPositionNormalizer().normalize(
             StockPositionCommand(
-                account_id=command.account_id,
+                group_id=command.group_id,
                 instrument_id=command.instrument_id,
                 input_date=command.input_date,
                 quantity=command.quantity,
@@ -210,19 +175,4 @@ class FundSharesPositionNormalizer:
                 total_cost=command.total_cost,
                 average_cost=command.average_cost,
             )
-        )
-        return PositionDraft(
-            account_id=stock_draft.account_id,
-            instrument_id=stock_draft.instrument_id,
-            input_mode=PositionInputMode.FUND_SHARES,
-            cost_input_mode=stock_draft.cost_input_mode,
-            input_date=stock_draft.input_date,
-            input_quantity=stock_draft.input_quantity,
-            input_total_cost=stock_draft.input_total_cost,
-            input_average_cost=stock_draft.input_average_cost,
-            input_current_value=None,
-            input_holding_profit=None,
-            quantity=stock_draft.quantity,
-            total_cost=stock_draft.total_cost,
-            average_cost=stock_draft.average_cost,
         )

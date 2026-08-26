@@ -1,21 +1,27 @@
-"""股票持仓创建、读取、修改和删除用例。"""
+"""股票与基金持仓的创建、读取、修改和删除用例。"""
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
+
+from pydantic import ValidationError
 
 from app.modules.instruments.domain import InstrumentRecord
 from app.modules.instruments.enums import AssetType
 from app.modules.instruments.repository import InstrumentRepository
+from app.modules.market_data.enums import PriceType
+from app.modules.market_data.providers.contracts import FundNavProvider
+from app.modules.market_data.providers.http import ProviderPayloadError, ProviderUnavailableError
 from app.modules.market_data.repository import MarketDataRepository
 from app.modules.portfolios.domain import PositionDraft, PositionRecord
-from app.modules.portfolios.enums import CostInputMode, PositionInputMode
+from app.modules.portfolios.enums import CostInputMode
 from app.modules.portfolios.position_commands import (
     FundAmountPositionCommand,
+    FundNavBasis,
     FundSharesPositionCommand,
-    OfficialNavBasis,
     StockPositionCommand,
     UpdateFundAmountPositionCommand,
     UpdateFundSharesPositionCommand,
@@ -31,7 +37,9 @@ from app.modules.portfolios.position_repository import (
     PositionAlreadyExistsError,
     PositionRepository,
 )
-from app.modules.portfolios.repository import InvestmentAccountRepository
+from app.modules.watchlists.repository import WatchlistRepository
+
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 class PositionError(Exception):
@@ -60,36 +68,37 @@ class PositionView:
 
 
 class PositionService:
-    """执行股票持仓规范化、用户归属和乐观锁规则。"""
+    """把多种表单输入规范化为统一持仓投影。"""
 
     def __init__(
         self,
         position_repository: PositionRepository,
-        account_repository: InvestmentAccountRepository,
+        group_repository: WatchlistRepository,
         instrument_repository: InstrumentRepository,
         market_data_repository: MarketDataRepository | None = None,
+        fund_nav_provider: FundNavProvider | None = None,
     ) -> None:
-        """注入用户隔离的持仓、账户和资产持久化边界。"""
+        """注入用户隔离的持仓、分组、资产、行情和基金来源边界。"""
         self._positions = position_repository
-        self._accounts = account_repository
+        self._groups = group_repository
         self._instruments = instrument_repository
         self._market_data = market_data_repository
-        self._normalizer = StockPositionNormalizer()
+        self._fund_nav_provider = fund_nav_provider
 
     async def list_positions(
         self,
         *,
         user_id: UUID,
-        account_id: UUID | None,
+        group_id: UUID | None,
         page: int,
         page_size: int,
     ) -> tuple[list[PositionView], int]:
-        """校验可选账户归属并分页返回当前用户持仓。"""
-        if account_id is not None:
-            await self._require_account(user_id=user_id, account_id=account_id)
+        """校验可选分组归属并分页返回当前用户持仓。"""
+        if group_id is not None:
+            await self._require_group(user_id=user_id, group_id=group_id)
         records, total = await self._positions.list_for_user(
             user_id=user_id,
-            account_id=account_id,
+            group_id=group_id,
             offset=(page - 1) * page_size,
             limit=page_size,
         )
@@ -106,21 +115,59 @@ class PositionService:
         user_id: UUID,
         command: StockPositionCommand,
     ) -> PositionView:
-        """校验账户与股票身份，规范化后创建账户内唯一持仓。"""
-        await self._require_account(user_id=user_id, account_id=command.account_id)
-        instrument = await self._require_stock(instrument_id=command.instrument_id)
-        draft = self._normalize(command)
-        try:
-            record = await self._positions.create_for_user(user_id=user_id, draft=draft)
-        except PositionAlreadyExistsError as error:
-            raise await self._duplicate_error(
-                user_id=user_id,
-                account_id=command.account_id,
+        """校验股票身份并创建组内唯一持仓及期初交易。"""
+        return await self._create_position(
+            user_id=user_id,
+            command_group_id=command.group_id,
+            instrument=await self._require_asset(
                 instrument_id=command.instrument_id,
-            ) from error
-        if record is None:
-            raise PositionError(code="ACCOUNT_NOT_FOUND", message="投资账户不存在")
-        return PositionView(record=record, instrument=instrument)
+                asset_type=AssetType.STOCK,
+            ),
+            draft=self._normalize_stock(command),
+        )
+
+    async def create_fund_amount_position(
+        self,
+        *,
+        user_id: UUID,
+        command: FundAmountPositionCommand,
+    ) -> PositionView:
+        """获取实时估值或最新净值，立即把基金金额换算为份额。"""
+        instrument = await self._require_asset(
+            instrument_id=command.instrument_id,
+            asset_type=AssetType.FUND,
+        )
+        normalized = FundAmountPositionCommand(
+            group_id=command.group_id,
+            instrument_id=command.instrument_id,
+            input_date=command.input_date,
+            current_value=command.current_value,
+            holding_profit=command.holding_profit,
+            nav_basis=await self._fund_nav_basis(instrument=instrument),
+        )
+        return await self._create_position(
+            user_id=user_id,
+            command_group_id=command.group_id,
+            instrument=instrument,
+            draft=self._normalize_fund_amount(normalized),
+        )
+
+    async def create_fund_shares_position(
+        self,
+        *,
+        user_id: UUID,
+        command: FundSharesPositionCommand,
+    ) -> PositionView:
+        """校验基金身份并按份额与成本创建持仓。"""
+        return await self._create_position(
+            user_id=user_id,
+            command_group_id=command.group_id,
+            instrument=await self._require_asset(
+                instrument_id=command.instrument_id,
+                asset_type=AssetType.FUND,
+            ),
+            draft=self._normalize_fund_shares(command),
+        )
 
     async def update_stock_position(
         self,
@@ -129,114 +176,35 @@ class PositionService:
         position_id: UUID,
         command: UpdateStockPositionCommand,
     ) -> PositionView:
-        """合并部分输入、重新规范化，并仅在版本匹配时保存。"""
-        current = await self._require_position(user_id=user_id, position_id=position_id)
-        if current.input_mode != PositionInputMode.STOCK_SHARES:
-            raise PositionError(
-                code="POSITION_INPUT_MODE_MISMATCH",
-                message="当前持仓不是股票份额模式",
-            )
-        if current.version != command.version:
-            raise PositionError(
-                code="POSITION_VERSION_CONFLICT",
-                message="持仓已在其他页面更新，请重新加载",
-            )
-        account_id = command.account_id or current.account_id
-        await self._require_account(user_id=user_id, account_id=account_id)
-        cost_mode, total_cost, average_cost = self._merged_cost(current, command)
-        quantity = command.quantity if command.quantity is not None else current.input_quantity
+        """合并股票部分输入，并把变化写入调整交易。"""
+        current, instrument = await self._current_for_update(
+            user_id=user_id,
+            position_id=position_id,
+            version=command.version,
+            asset_type=AssetType.STOCK,
+        )
+        quantity = command.quantity if command.quantity is not None else current.quantity
         if quantity is None:
-            raise PositionError(
-                code="INVALID_POSITION_DECIMAL",
-                message="股票持有数量不能为空",
-            )
-        draft = self._normalize(
+            raise PositionError(code="INVALID_POSITION_DECIMAL", message="股票持有数量不能为空")
+        cost_mode, total_cost, average_cost = self._merged_cost(current, command)
+        draft = self._normalize_stock(
             StockPositionCommand(
-                account_id=account_id,
+                group_id=command.group_id or current.group_id,
                 instrument_id=current.instrument_id,
-                input_date=command.input_date or current.input_date,
+                input_date=command.input_date or current.last_trade_date,
                 quantity=quantity,
                 cost_input_mode=cost_mode,
                 total_cost=total_cost,
                 average_cost=average_cost,
             )
         )
-        try:
-            updated = await self._positions.update_for_user(
-                user_id=user_id,
-                position_id=position_id,
-                version=command.version,
-                draft=draft,
-                changed_at=datetime.now(UTC),
-            )
-        except PositionAlreadyExistsError as error:
-            raise await self._duplicate_error(
-                user_id=user_id,
-                account_id=account_id,
-                instrument_id=current.instrument_id,
-            ) from error
-        if updated is None:
-            raise PositionError(
-                code="POSITION_VERSION_CONFLICT",
-                message="持仓已在其他页面更新，请重新加载",
-            )
-        return (await self._views([updated]))[0]
-
-    async def create_fund_amount_position(
-        self,
-        *,
-        user_id: UUID,
-        command: FundAmountPositionCommand,
-    ) -> PositionView:
-        """使用录入日期官方净值可选推算份额并创建基金快速持仓。"""
-        await self._require_account(user_id=user_id, account_id=command.account_id)
-        instrument = await self._require_fund(instrument_id=command.instrument_id)
-        draft = self._normalize_fund_amount(
-            FundAmountPositionCommand(
-                account_id=command.account_id,
-                instrument_id=command.instrument_id,
-                input_date=command.input_date,
-                current_value=command.current_value,
-                holding_profit=command.holding_profit,
-                nav_basis=await self._official_nav_basis(
-                    instrument_id=command.instrument_id,
-                    input_date=command.input_date,
-                ),
-            )
+        return await self._update_position(
+            user_id=user_id,
+            position_id=position_id,
+            version=command.version,
+            instrument=instrument,
+            draft=draft,
         )
-        try:
-            record = await self._positions.create_for_user(user_id=user_id, draft=draft)
-        except PositionAlreadyExistsError as error:
-            raise await self._duplicate_error(
-                user_id=user_id,
-                account_id=command.account_id,
-                instrument_id=command.instrument_id,
-            ) from error
-        if record is None:
-            raise PositionError(code="ACCOUNT_NOT_FOUND", message="投资账户不存在")
-        return PositionView(record=record, instrument=instrument)
-
-    async def create_fund_shares_position(
-        self,
-        *,
-        user_id: UUID,
-        command: FundSharesPositionCommand,
-    ) -> PositionView:
-        """规范化份额和成本后创建基金精确持仓。"""
-        await self._require_account(user_id=user_id, account_id=command.account_id)
-        instrument = await self._require_fund(instrument_id=command.instrument_id)
-        draft = self._normalize_fund_shares(command)
-        try:
-            record = await self._positions.create_for_user(user_id=user_id, draft=draft)
-        except PositionAlreadyExistsError as error:
-            raise await self._duplicate_error(
-                user_id=user_id,
-                account_id=command.account_id,
-                instrument_id=command.instrument_id,
-            ) from error
-        if record is None:
-            raise PositionError(code="ACCOUNT_NOT_FOUND", message="投资账户不存在")
-        return PositionView(record=record, instrument=instrument)
 
     async def update_fund_amount_position(
         self,
@@ -245,48 +213,58 @@ class PositionService:
         position_id: UUID,
         command: UpdateFundAmountPositionCommand,
     ) -> PositionView:
-        """合并基金金额输入并按新日期重新选择官方净值推算份额。"""
-        current = await self._require_mode(
+        """按当前可用净值重新计算基金金额模式持仓。"""
+        current, instrument = await self._current_for_update(
             user_id=user_id,
             position_id=position_id,
             version=command.version,
-            input_mode=PositionInputMode.FUND_AMOUNT,
+            asset_type=AssetType.FUND,
         )
-        account_id = command.account_id or current.account_id
-        await self._require_account(user_id=user_id, account_id=account_id)
-        current_value = (
-            command.current_value
-            if command.current_value is not None
-            else current.input_current_value
-        )
-        holding_profit = (
-            command.holding_profit
-            if command.holding_profit is not None
-            else current.input_holding_profit
-        )
-        if current_value is None or holding_profit is None:
-            raise PositionError(
-                code="INVALID_FUND_AMOUNT_INPUT",
-                message="基金当前金额和持有收益不能为空",
-            )
-        input_date = command.input_date or current.input_date
-        draft = self._normalize_fund_amount(
-            FundAmountPositionCommand(
-                account_id=account_id,
+        group_id = command.group_id or current.group_id
+        trade_date = command.input_date or current.last_trade_date
+        if command.current_value is None and command.holding_profit is None:
+            if current.quantity is None or current.average_cost is None:
+                raise PositionError(code="POSITION_PENDING", message="历史持仓数据尚未补齐")
+            draft = PositionDraft(
+                group_id=group_id,
                 instrument_id=current.instrument_id,
-                input_date=input_date,
-                current_value=current_value,
-                holding_profit=holding_profit,
-                nav_basis=await self._official_nav_basis(
-                    instrument_id=current.instrument_id,
-                    input_date=input_date,
-                ),
+                trade_date=trade_date,
+                quantity=current.quantity,
+                total_cost=current.total_cost,
+                average_cost=current.average_cost,
             )
-        )
+        else:
+            basis = await self._fund_nav_basis(instrument=instrument)
+            if basis is None or current.quantity is None:
+                raise PositionError(
+                    code="FUND_NAV_UNAVAILABLE",
+                    message="暂时无法取得基金净值，请稍后重试或改用份额录入",
+                )
+            current_value = current.quantity * basis.value
+            holding_profit = current_value - current.total_cost
+            draft = self._normalize_fund_amount(
+                FundAmountPositionCommand(
+                    group_id=group_id,
+                    instrument_id=current.instrument_id,
+                    input_date=trade_date,
+                    current_value=(
+                        command.current_value
+                        if command.current_value is not None
+                        else current_value
+                    ),
+                    holding_profit=(
+                        command.holding_profit
+                        if command.holding_profit is not None
+                        else holding_profit
+                    ),
+                    nav_basis=basis,
+                )
+            )
         return await self._update_position(
             user_id=user_id,
             position_id=position_id,
             version=command.version,
+            instrument=instrument,
             draft=draft,
         )
 
@@ -297,27 +275,22 @@ class PositionService:
         position_id: UUID,
         command: UpdateFundSharesPositionCommand,
     ) -> PositionView:
-        """合并基金份额输入并按乐观锁保存精确持仓。"""
-        current = await self._require_mode(
+        """合并基金份额输入，并把变化写入调整交易。"""
+        current, instrument = await self._current_for_update(
             user_id=user_id,
             position_id=position_id,
             version=command.version,
-            input_mode=PositionInputMode.FUND_SHARES,
+            asset_type=AssetType.FUND,
         )
-        account_id = command.account_id or current.account_id
-        await self._require_account(user_id=user_id, account_id=account_id)
-        cost_mode, total_cost, average_cost = self._merged_cost(current, command)
-        quantity = command.quantity if command.quantity is not None else current.input_quantity
+        quantity = command.quantity if command.quantity is not None else current.quantity
         if quantity is None:
-            raise PositionError(
-                code="INVALID_POSITION_DECIMAL",
-                message="基金持有份额不能为空",
-            )
+            raise PositionError(code="INVALID_POSITION_DECIMAL", message="基金持有份额不能为空")
+        cost_mode, total_cost, average_cost = self._merged_cost(current, command)
         draft = self._normalize_fund_shares(
             FundSharesPositionCommand(
-                account_id=account_id,
+                group_id=command.group_id or current.group_id,
                 instrument_id=current.instrument_id,
-                input_date=command.input_date or current.input_date,
+                input_date=command.input_date or current.last_trade_date,
                 quantity=quantity,
                 cost_input_mode=cost_mode,
                 total_cost=total_cost,
@@ -328,111 +301,37 @@ class PositionService:
             user_id=user_id,
             position_id=position_id,
             version=command.version,
+            instrument=instrument,
             draft=draft,
         )
 
     async def delete_position(self, *, user_id: UUID, position_id: UUID) -> None:
-        """删除当前用户持仓，越权与不存在保持相同错误语义。"""
+        """删除误录持仓，越权与不存在保持相同错误语义。"""
         await self._require_position(user_id=user_id, position_id=position_id)
-        if not await self._positions.delete_for_user(
-            user_id=user_id,
-            position_id=position_id,
-        ):
+        if not await self._positions.delete_for_user(user_id=user_id, position_id=position_id):
             raise PositionError(code="POSITION_NOT_FOUND", message="持仓不存在")
 
-    def _normalize(self, command: StockPositionCommand) -> PositionDraft:
-        """把规范化错误转换为统一持仓领域错误。"""
-        try:
-            return self._normalizer.normalize(command)
-        except PositionNormalizationError as error:
-            raise PositionError(code=error.code, message=error.message) from error
-
-    @staticmethod
-    def _normalize_fund_amount(command: FundAmountPositionCommand) -> PositionDraft:
-        """把基金金额规范化错误转换为统一持仓领域错误。"""
-        try:
-            return FundAmountPositionNormalizer().normalize(command)
-        except PositionNormalizationError as error:
-            raise PositionError(code=error.code, message=error.message) from error
-
-    @staticmethod
-    def _normalize_fund_shares(command: FundSharesPositionCommand) -> PositionDraft:
-        """把基金份额规范化错误转换为统一持仓领域错误。"""
-        try:
-            return FundSharesPositionNormalizer().normalize(command)
-        except PositionNormalizationError as error:
-            raise PositionError(code=error.code, message=error.message) from error
-
-    async def _require_account(self, *, user_id: UUID, account_id: UUID) -> None:
-        """要求投资账户属于当前用户。"""
-        account = await self._accounts.get_for_user(user_id=user_id, account_id=account_id)
-        if account is None:
-            raise PositionError(code="ACCOUNT_NOT_FOUND", message="投资账户不存在")
-
-    async def _require_stock(self, *, instrument_id: UUID) -> InstrumentRecord:
-        """要求标的是一期可用股票，基金不能进入股票录入路径。"""
-        instrument = await self._instruments.get_active(instrument_id=instrument_id)
-        if instrument is None:
-            raise PositionError(code="INSTRUMENT_NOT_FOUND", message="资产不存在")
-        if instrument.asset_type != AssetType.STOCK:
-            raise PositionError(
-                code="POSITION_ASSET_TYPE_MISMATCH",
-                message="股票持仓只能选择股票",
-            )
-        return instrument
-
-    async def _require_fund(self, *, instrument_id: UUID) -> InstrumentRecord:
-        """要求标的是一期可用基金，股票不能进入基金录入路径。"""
-        instrument = await self._instruments.get_active(instrument_id=instrument_id)
-        if instrument is None:
-            raise PositionError(code="INSTRUMENT_NOT_FOUND", message="资产不存在")
-        if instrument.asset_type != AssetType.FUND:
-            raise PositionError(
-                code="POSITION_ASSET_TYPE_MISMATCH",
-                message="基金持仓只能选择基金",
-            )
-        return instrument
-
-    async def _require_mode(
+    async def _create_position(
         self,
         *,
         user_id: UUID,
-        position_id: UUID,
-        version: int,
-        input_mode: PositionInputMode,
-    ) -> PositionRecord:
-        """要求持仓模式和版本与更新请求一致。"""
-        current = await self._require_position(user_id=user_id, position_id=position_id)
-        if current.input_mode != input_mode:
-            raise PositionError(
-                code="POSITION_INPUT_MODE_MISMATCH",
-                message="持仓录入模式与更新请求不一致",
-            )
-        if current.version != version:
-            raise PositionError(
-                code="POSITION_VERSION_CONFLICT",
-                message="持仓已在其他页面更新，请重新加载",
-            )
-        return current
-
-    async def _official_nav_basis(
-        self,
-        *,
-        instrument_id: UUID,
-        input_date: date,
-    ) -> OfficialNavBasis | None:
-        """使用录入日当天或此前最近的官方单位净值推算份额。"""
-        if self._market_data is None:
-            raise RuntimeError("基金持仓服务缺少行情 Repository")
-        price = await self._market_data.latest_official_nav_on_or_before(
-            instrument_id=instrument_id,
-            nav_date=input_date,
-        )
-        return (
-            OfficialNavBasis(value=price.value, nav_date=price.as_of_date)
-            if price is not None and price.as_of_date is not None
-            else None
-        )
+        command_group_id: UUID,
+        instrument: InstrumentRecord,
+        draft: PositionDraft,
+    ) -> PositionView:
+        """统一处理分组归属、重复持仓和创建结果。"""
+        await self._require_group(user_id=user_id, group_id=command_group_id)
+        try:
+            record = await self._positions.create_for_user(user_id=user_id, draft=draft)
+        except PositionAlreadyExistsError as error:
+            raise await self._duplicate_error(
+                user_id=user_id,
+                group_id=command_group_id,
+                instrument_id=instrument.id,
+            ) from error
+        if record is None:
+            raise PositionError(code="GROUP_NOT_FOUND", message="分组不存在")
+        return PositionView(record=record, instrument=instrument)
 
     async def _update_position(
         self,
@@ -440,9 +339,11 @@ class PositionService:
         user_id: UUID,
         position_id: UUID,
         version: int,
+        instrument: InstrumentRecord,
         draft: PositionDraft,
     ) -> PositionView:
-        """保存已规范化持仓并统一处理重复和并发冲突。"""
+        """统一保存投影、处理组内重复和乐观锁冲突。"""
+        await self._require_group(user_id=user_id, group_id=draft.group_id)
         try:
             updated = await self._positions.update_for_user(
                 user_id=user_id,
@@ -454,7 +355,7 @@ class PositionService:
         except PositionAlreadyExistsError as error:
             raise await self._duplicate_error(
                 user_id=user_id,
-                account_id=draft.account_id,
+                group_id=draft.group_id,
                 instrument_id=draft.instrument_id,
             ) from error
         if updated is None:
@@ -462,7 +363,51 @@ class PositionService:
                 code="POSITION_VERSION_CONFLICT",
                 message="持仓已在其他页面更新，请重新加载",
             )
-        return (await self._views([updated]))[0]
+        return PositionView(record=updated, instrument=instrument)
+
+    async def _current_for_update(
+        self,
+        *,
+        user_id: UUID,
+        position_id: UUID,
+        version: int,
+        asset_type: AssetType,
+    ) -> tuple[PositionRecord, InstrumentRecord]:
+        """校验当前投影版本及其资产类型。"""
+        current = await self._require_position(user_id=user_id, position_id=position_id)
+        if current.version != version:
+            raise PositionError(
+                code="POSITION_VERSION_CONFLICT",
+                message="持仓已在其他页面更新，请重新加载",
+            )
+        instrument = await self._require_asset(
+            instrument_id=current.instrument_id,
+            asset_type=asset_type,
+        )
+        return current, instrument
+
+    async def _require_group(self, *, user_id: UUID, group_id: UUID) -> None:
+        """要求组合分组属于当前用户。"""
+        if await self._groups.get_group_for_user(user_id=user_id, group_id=group_id) is None:
+            raise PositionError(code="GROUP_NOT_FOUND", message="分组不存在")
+
+    async def _require_asset(
+        self,
+        *,
+        instrument_id: UUID,
+        asset_type: AssetType,
+    ) -> InstrumentRecord:
+        """要求标的存在、可用且与录入入口资产类型一致。"""
+        instrument = await self._instruments.get_active(instrument_id=instrument_id)
+        if instrument is None:
+            raise PositionError(code="INSTRUMENT_NOT_FOUND", message="资产不存在")
+        if instrument.asset_type != asset_type:
+            label = "股票" if asset_type == AssetType.STOCK else "基金"
+            raise PositionError(
+                code="POSITION_ASSET_TYPE_MISMATCH",
+                message=f"{label}持仓只能选择{label}",
+            )
+        return instrument
 
     async def _require_position(self, *, user_id: UUID, position_id: UUID) -> PositionRecord:
         """要求持仓属于当前用户，避免通过 ID 枚举其他用户数据。"""
@@ -486,54 +431,115 @@ class PositionService:
         self,
         *,
         user_id: UUID,
-        account_id: UUID,
+        group_id: UUID,
         instrument_id: UUID,
     ) -> PositionError:
         """查找已有持仓 ID，帮助客户端从新增恢复到编辑。"""
-        existing = await self._positions.find_by_account_instrument_for_user(
+        existing = await self._positions.find_by_group_instrument_for_user(
             user_id=user_id,
-            account_id=account_id,
+            group_id=group_id,
             instrument_id=instrument_id,
         )
         details = {"positionId": str(existing.id)} if existing is not None else None
         return PositionError(
             code="POSITION_ALREADY_EXISTS",
-            message="该账户中已经存在此标的",
+            message="该分组中已经存在此标的",
             details=details,
         )
+
+    async def _fund_nav_basis(self, *, instrument: InstrumentRecord) -> FundNavBasis | None:
+        """优先拉取盘中估值，回退最新官方净值和本地行情。"""
+        if self._market_data is None:
+            raise RuntimeError("基金持仓服务缺少行情 Repository")
+        if self._fund_nav_provider is not None:
+            try:
+                estimated = list(
+                    await self._fund_nav_provider.fetch_estimated_navs([instrument.ticker])
+                )
+                if estimated:
+                    estimated_snapshot = estimated[0]
+                    await self._market_data.upsert_estimated_navs(estimated)
+                    return FundNavBasis(
+                        value=estimated_snapshot.estimated_nav,
+                        nav_date=estimated_snapshot.as_of_at.astimezone(_SHANGHAI).date(),
+                    )
+                official = list(
+                    await self._fund_nav_provider.fetch_official_navs([instrument.ticker])
+                )
+                if official:
+                    official_snapshot = official[0]
+                    await self._market_data.upsert_official_navs(official)
+                    return FundNavBasis(
+                        value=official_snapshot.unit_nav,
+                        nav_date=official_snapshot.nav_date,
+                    )
+            except (ProviderUnavailableError, ProviderPayloadError, ValidationError):
+                pass
+
+        prices = (await self._market_data.latest_prices(instrument_ids=[instrument.id])).get(
+            instrument.id,
+            [],
+        )
+        today = datetime.now(_SHANGHAI).date()
+        estimated_price = next(
+            (
+                price
+                for price in prices
+                if price.price_type == PriceType.FUND_ESTIMATED_NAV
+                and price.as_of_at is not None
+                and price.as_of_at.astimezone(_SHANGHAI).date() == today
+            ),
+            None,
+        )
+        if estimated_price is not None:
+            return FundNavBasis(value=estimated_price.value, nav_date=today)
+        price = await self._market_data.latest_official_nav_on_or_before(
+            instrument_id=instrument.id,
+            nav_date=today,
+        )
+        return (
+            FundNavBasis(value=price.value, nav_date=price.as_of_date)
+            if price is not None and price.as_of_date is not None
+            else None
+        )
+
+    @staticmethod
+    def _normalize_stock(command: StockPositionCommand) -> PositionDraft:
+        """把股票规范化错误转换为统一持仓领域错误。"""
+        return PositionService._normalize_with(StockPositionNormalizer(), command)
+
+    @staticmethod
+    def _normalize_fund_amount(command: FundAmountPositionCommand) -> PositionDraft:
+        """把基金金额规范化错误转换为统一持仓领域错误。"""
+        return PositionService._normalize_with(FundAmountPositionNormalizer(), command)
+
+    @staticmethod
+    def _normalize_fund_shares(command: FundSharesPositionCommand) -> PositionDraft:
+        """把基金份额规范化错误转换为统一持仓领域错误。"""
+        return PositionService._normalize_with(FundSharesPositionNormalizer(), command)
+
+    @staticmethod
+    def _normalize_with(normalizer: Any, command: Any) -> PositionDraft:
+        """统一转换规范化组件暴露的稳定错误。"""
+        try:
+            return cast(PositionDraft, normalizer.normalize(command))
+        except PositionNormalizationError as error:
+            raise PositionError(code=error.code, message=error.message) from error
 
     @staticmethod
     def _merged_cost(
         current: PositionRecord,
         command: UpdateStockPositionCommand | UpdateFundSharesPositionCommand,
     ) -> tuple[CostInputMode, Decimal | None, Decimal | None]:
-        """根据 PATCH 成本字段决定目标模式并丢弃另一模式的旧值。"""
+        """把部分成本输入合并为一次完整且无歧义的规范化请求。"""
         if command.total_cost is not None and command.average_cost is not None:
-            raise PositionError(
-                code="INVALID_COST_INPUT",
-                message="总成本和平均成本只能填写一项",
-            )
-        if (
-            command.cost_input_mode == CostInputMode.TOTAL_COST
-            and command.average_cost is not None
-        ) or (
-            command.cost_input_mode == CostInputMode.AVERAGE_COST
-            and command.total_cost is not None
-        ):
-            raise PositionError(
-                code="INVALID_COST_INPUT",
-                message="成本输入方式与填写字段不一致",
-            )
+            raise PositionError(code="INVALID_COST_INPUT", message="总成本和平均成本只能填写一项")
         if command.total_cost is not None:
             return CostInputMode.TOTAL_COST, command.total_cost, None
         if command.average_cost is not None:
             return CostInputMode.AVERAGE_COST, None, command.average_cost
-        mode = command.cost_input_mode or current.cost_input_mode
-        if mode == CostInputMode.TOTAL_COST and current.input_total_cost is not None:
-            return mode, current.input_total_cost, None
-        if mode == CostInputMode.AVERAGE_COST and current.input_average_cost is not None:
-            return mode, None, current.input_average_cost
-        raise PositionError(
-            code="INVALID_COST_INPUT",
-            message="切换成本方式时必须填写对应成本",
-        )
+        if command.cost_input_mode == CostInputMode.AVERAGE_COST:
+            if current.average_cost is None:
+                raise PositionError(code="POSITION_PENDING", message="历史持仓数据尚未补齐")
+            return CostInputMode.AVERAGE_COST, None, current.average_cost
+        return CostInputMode.TOTAL_COST, current.total_cost, None

@@ -10,13 +10,14 @@ from app.modules.instruments.schemas import InstrumentResponse
 
 
 class WatchlistGroupResponse(ApiModel):
-    """返回用户可见的自选分组及标的数量。"""
+    """返回用户可见的统一分组及自选、持仓数量。"""
 
     id: UUID
     name: str
     is_default: bool
     sort_order: int
     item_count: int
+    position_count: int
     version: int
     created_at: datetime
     updated_at: datetime

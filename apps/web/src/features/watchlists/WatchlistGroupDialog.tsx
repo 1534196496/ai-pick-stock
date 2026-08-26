@@ -10,14 +10,16 @@ import {
   useUpdateWatchlistGroup,
   watchlistGroupsQueryKey,
 } from './hooks';
+import './watchlists.css';
 
 interface WatchlistGroupDialogProps {
   group?: WatchlistGroup;
+  onCreated?: (group: WatchlistGroup) => void;
   onClose: () => void;
 }
 
-/** 创建、重命名或删除自选分组，并保留冲突时的用户输入。 */
-export function WatchlistGroupDialog({ group, onClose }: WatchlistGroupDialogProps) {
+/** 创建、重命名或删除统一分组，并保留冲突时的用户输入。 */
+export function WatchlistGroupDialog({ group, onCreated, onClose }: WatchlistGroupDialogProps) {
   const { dialogRef, closeDialog } = useModalDialog(onClose);
   const queryClient = useQueryClient();
   const createMutation = useCreateWatchlistGroup();
@@ -32,7 +34,8 @@ export function WatchlistGroupDialog({ group, onClose }: WatchlistGroupDialogPro
     event.preventDefault();
     try {
       if (group === undefined) {
-        await createMutation.mutateAsync(name);
+        const createdGroup = await createMutation.mutateAsync(name);
+        onCreated?.(createdGroup);
       } else {
         await updateMutation.mutateAsync({ group, changes: { name } });
       }
@@ -63,7 +66,7 @@ export function WatchlistGroupDialog({ group, onClose }: WatchlistGroupDialogPro
     >
       <header className="dialog-heading">
         <div>
-          <p className="eyebrow">自选分组</p>
+          <p className="eyebrow">持仓与自选共用</p>
           <h2 id="watchlist-group-dialog-title">{group === undefined ? '新建分组' : '管理分组'}</h2>
         </div>
         <button className="text-button" type="button" onClick={closeDialog}>关闭</button>
@@ -74,8 +77,10 @@ export function WatchlistGroupDialog({ group, onClose }: WatchlistGroupDialogPro
           <input autoFocus maxLength={80} required value={name} onChange={(event) => setName(event.target.value)} />
         </label>
         {group?.isDefault && <p className="watchlist-dialog__note">这是默认分组，可以重命名，但不能删除。</p>}
-        {group !== undefined && !group.isDefault && group.itemCount > 0 && (
-          <p className="watchlist-dialog__note">请先移动或移除组内 {group.itemCount} 个标的，再删除分组。</p>
+        {group !== undefined && !group.isDefault && (group.itemCount > 0 || group.positionCount > 0) && (
+          <p className="watchlist-dialog__note">
+            请先移走组内 {group.positionCount} 个持仓和 {group.itemCount} 个自选，再删除分组。
+          </p>
         )}
         {error !== null && (
           <p className="form-error" role="alert">
@@ -92,7 +97,7 @@ export function WatchlistGroupDialog({ group, onClose }: WatchlistGroupDialogPro
           </button>
         )}
         <div className="watchlist-dialog__actions">
-          {group !== undefined && !group.isDefault && group.itemCount === 0 && (
+          {group !== undefined && !group.isDefault && group.itemCount === 0 && group.positionCount === 0 && (
             confirmDelete ? (
               <>
                 <button className="danger-button" disabled={deleteMutation.isPending} type="button" onClick={() => void remove()}>确认删除</button>

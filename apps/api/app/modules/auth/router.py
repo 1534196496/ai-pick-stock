@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.dependencies import (
     get_auth_repository,
-    get_investment_account_repository,
     get_optional_session_principal,
     get_password_reset_mailer,
     get_session_cookie_policy,
@@ -30,7 +29,6 @@ from app.modules.auth.schemas import (
     SessionResponse,
 )
 from app.modules.auth.service import AuthenticationError, AuthService, RegistrationError
-from app.modules.portfolios.repository import InvestmentAccountRepository
 from app.modules.watchlists.repository import WatchlistRepository
 
 logger = logging.getLogger(__name__)
@@ -51,10 +49,6 @@ async def register(
     payload: RegistrationRequest,
     request: Request,
     repository: Annotated[AuthRepository, Depends(get_auth_repository)],
-    account_repository: Annotated[
-        InvestmentAccountRepository,
-        Depends(get_investment_account_repository),
-    ],
     watchlist_repository: Annotated[
         WatchlistRepository,
         Depends(get_watchlist_repository),
@@ -63,7 +57,6 @@ async def register(
     """创建邮箱密码用户，并保证响应不包含密码或摘要。"""
     service = AuthService(
         repository,
-        account_initializer=account_repository,
         watchlist_initializer=watchlist_repository,
     )
     try:

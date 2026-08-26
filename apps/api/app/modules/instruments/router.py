@@ -9,9 +9,8 @@ from app.api.dependencies import (
     get_current_identity,
     get_instrument_repository,
     get_market_data_repository,
-    get_settings,
+    get_market_data_schedule_record,
 )
-from app.core.config import Settings
 from app.core.errors import ApiError
 from app.modules.auth.domain import UserIdentity
 from app.modules.instruments.enums import AssetType
@@ -22,6 +21,7 @@ from app.modules.instruments.schemas import (
     LatestPriceResponse,
 )
 from app.modules.instruments.service import InstrumentError, InstrumentService, InstrumentView
+from app.modules.market_data.domain import MarketDataScheduleRecord
 from app.modules.market_data.repository import MarketDataRepository
 from app.modules.market_data.service import MarketDataFreshnessPolicy
 
@@ -39,7 +39,7 @@ async def search_instruments(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
     query: Annotated[str | None, Query(max_length=160)] = None,
     asset_type: Annotated[AssetType | None, Query(alias="assetType")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
@@ -49,7 +49,7 @@ async def search_instruments(
     records, total = await _service(
         instrument_repository,
         market_data_repository,
-        settings,
+        schedule,
     ).search(
         query=query,
         asset_type=asset_type,
@@ -76,14 +76,14 @@ async def get_instrument(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> InstrumentResponse:
     """返回指定一期资产及各价格口径的最新本地快照。"""
     try:
         record = await _service(
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).get(instrument_id=instrument_id)
     except InstrumentError as error:
         raise ApiError(
@@ -97,13 +97,16 @@ async def get_instrument(
 def _service(
     instrument_repository: InstrumentRepository,
     market_data_repository: MarketDataRepository,
-    settings: Settings,
+    schedule: MarketDataScheduleRecord,
 ) -> InstrumentService:
     """使用请求级 Repository 和已校验刷新配置创建资产服务。"""
     return InstrumentService(
         instrument_repository,
         market_data_repository,
-        MarketDataFreshnessPolicy(stock_refresh_seconds=settings.stock_refresh_seconds),
+        MarketDataFreshnessPolicy(
+            stock_refresh_seconds=schedule.stock_refresh_seconds,
+            fund_estimate_refresh_seconds=schedule.fund_estimate_refresh_seconds,
+        ),
     )
 
 
@@ -125,6 +128,7 @@ def _response(view: InstrumentView) -> InstrumentResponse:
             LatestPriceResponse(
                 price_type=price.record.price_type,
                 value=price.record.value,
+                change_rate=price.record.change_rate,
                 as_of_date=price.record.as_of_date,
                 as_of_at=price.record.as_of_at,
                 fetched_at=price.record.fetched_at,

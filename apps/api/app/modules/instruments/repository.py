@@ -145,8 +145,7 @@ class InstrumentRepository:
         relation_row = (
             await self._session.execute(
                 text(
-                    "SELECT to_regclass('public.positions'), "
-                    "to_regclass('public.watchlist_items')"
+                    "SELECT to_regclass('public.positions'), to_regclass('public.watchlist_items')"
                 )
             )
         ).one()

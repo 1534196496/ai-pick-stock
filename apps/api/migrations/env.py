@@ -17,10 +17,15 @@ config.set_main_option(
     settings.database_url.get_secret_value().replace("%", "%%"),
 )
 target_metadata = auth_models.User.metadata
-assert portfolio_models.InvestmentAccount.metadata is target_metadata
 assert portfolio_models.Position.metadata is target_metadata
+assert portfolio_models.PositionTransaction.metadata is target_metadata
+assert portfolio_models.PositionDailySnapshot.metadata is target_metadata
 assert instrument_models.Instrument.metadata is target_metadata
-assert market_models.InstrumentPrice.metadata is target_metadata
+assert market_models.LatestQuote.metadata is target_metadata
+assert market_models.IntradayQuote.metadata is target_metadata
+assert market_models.FundDailyNav.metadata is target_metadata
+assert market_models.StockDailyBar.metadata is target_metadata
+assert market_models.MarketDataSchedule.metadata is target_metadata
 assert watchlist_models.WatchlistGroup.metadata is target_metadata
 assert watchlist_models.WatchlistItem.metadata is target_metadata
 

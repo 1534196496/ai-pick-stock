@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { ApiClientError } from '../../shared/api/client';
 import { useModalDialog } from '../../shared/ui/useModalDialog';
-import type { InvestmentAccount } from '../accounts/api';
+import type { WatchlistGroup } from '../watchlists/api';
 import type { Instrument } from '../instruments/api';
 import { getPosition, type Position } from './api';
 import { divideDecimal, multiplyDecimal, subtractDecimal } from './decimal';
@@ -12,8 +12,8 @@ import { useCreatePosition, useUpdatePosition } from './hooks';
 
 interface FundPositionDialogProps {
   instrument: Pick<Instrument, 'id' | 'name' | 'ticker' | 'exchange'>;
-  accounts: InvestmentAccount[];
-  defaultAccountId: string | null;
+  groups: WatchlistGroup[];
+  defaultGroupId: string | null;
   position?: Position;
   onExistingPosition?: (position: Position) => void;
   onClose: () => void;
@@ -34,11 +34,11 @@ function shanghaiToday(): string {
   return `${value.year}-${value.month}-${value.day}`;
 }
 
-/** 支持基金按金额快速录入和按份额精确录入，并保留原始输入口径。 */
+/** 支持基金按金额快速录入和按份额精确录入，保存后统一为持仓投影。 */
 export function FundPositionDialog({
   instrument,
-  accounts,
-  defaultAccountId,
+  groups,
+  defaultGroupId,
   position,
   onExistingPosition,
   onClose,
@@ -48,23 +48,20 @@ export function FundPositionDialog({
   const createMutation = useCreatePosition();
   const updateMutation = useUpdatePosition();
   const mutation = position === undefined ? createMutation : updateMutation;
-  const initialMode: FundInputMode = position?.inputMode === 'FUND_SHARES'
-    ? 'FUND_SHARES'
-    : 'FUND_AMOUNT';
-  const initialCostMode: CostMode = position?.costInputMode ?? 'TOTAL_COST';
+  const initialMode: FundInputMode = position === undefined ? 'FUND_AMOUNT' : 'FUND_SHARES';
+  const initialCostMode: CostMode = 'TOTAL_COST';
   const [mode, setMode] = useState<FundInputMode>(initialMode);
-  const [accountId, setAccountId] = useState(
-    position?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? '',
+  const [groupId, setGroupId] = useState(
+    position?.groupId ?? defaultGroupId ?? groups[0]?.id ?? '',
   );
-  const [inputDate, setInputDate] = useState(position?.inputDate ?? shanghaiToday);
-  const [currentValue, setCurrentValue] = useState(position?.inputCurrentValue ?? '');
-  const [holdingProfit, setHoldingProfit] = useState(position?.inputHoldingProfit ?? '');
-  const [quantity, setQuantity] = useState(position?.inputQuantity ?? '');
+  const [inputDate, setInputDate] = useState(position?.lastTradeDate ?? shanghaiToday);
+  const activeValuation = position?.estimatedValuation ?? position?.valuation;
+  const [currentValue, setCurrentValue] = useState(activeValuation?.marketValue ?? '');
+  const [holdingProfit, setHoldingProfit] = useState(activeValuation?.holdingProfit ?? '');
+  const [quantity, setQuantity] = useState(position?.quantity ?? '');
   const [costMode, setCostMode] = useState<CostMode>(initialCostMode);
   const [cost, setCost] = useState(
-    initialCostMode === 'AVERAGE_COST'
-      ? position?.inputAverageCost ?? ''
-      : position?.inputTotalCost ?? '',
+    position?.totalCost ?? '',
   );
   const totalCostPreview = mode === 'FUND_AMOUNT'
     ? subtractDecimal(currentValue, holdingProfit)
@@ -81,7 +78,7 @@ export function FundPositionDialog({
         if (mode === 'FUND_AMOUNT') {
           await createMutation.mutateAsync({
             inputMode: 'FUND_AMOUNT',
-            accountId,
+            groupId,
             instrumentId: instrument.id,
             inputDate,
             currentValue,
@@ -90,7 +87,7 @@ export function FundPositionDialog({
         } else {
           await createMutation.mutateAsync({
             inputMode: 'FUND_SHARES',
-            accountId,
+            groupId,
             instrumentId: instrument.id,
             inputDate,
             quantity,
@@ -105,7 +102,7 @@ export function FundPositionDialog({
           input: {
             inputMode: 'FUND_AMOUNT',
             version: position.version,
-            accountId,
+            groupId,
             inputDate,
             currentValue,
             holdingProfit,
@@ -117,7 +114,7 @@ export function FundPositionDialog({
           input: {
             inputMode: 'FUND_SHARES',
             version: position.version,
-            accountId,
+            groupId,
             inputDate,
             quantity,
             costInputMode: costMode,
@@ -159,37 +156,31 @@ export function FundPositionDialog({
         <button className="text-button" type="button" onClick={closeDialog}>关闭</button>
       </header>
       <form className="position-form" onSubmit={(event) => void submit(event)}>
-        {position === undefined ? (
-          <fieldset className="cost-mode position-input-mode">
-            <legend>录入方式</legend>
-            <label>
-              <input
-                name="fund-input-mode"
-                type="radio"
-                checked={mode === 'FUND_AMOUNT'}
-                onChange={() => setMode('FUND_AMOUNT')}
-              />
-              按金额（推荐）
-            </label>
-            <label>
-              <input
-                name="fund-input-mode"
-                type="radio"
-                checked={mode === 'FUND_SHARES'}
-                onChange={() => setMode('FUND_SHARES')}
-              />
-              按份额
-            </label>
-          </fieldset>
-        ) : (
-          <p className="fund-input-note">
-            当前按{mode === 'FUND_AMOUNT' ? '金额' : '份额'}维护，编辑会保留原口径。
-          </p>
-        )}
+        <fieldset className="cost-mode position-input-mode">
+          <legend>录入方式</legend>
+          <label>
+            <input
+              name="fund-input-mode"
+              type="radio"
+              checked={mode === 'FUND_AMOUNT'}
+              onChange={() => setMode('FUND_AMOUNT')}
+            />
+            按金额（推荐）
+          </label>
+          <label>
+            <input
+              name="fund-input-mode"
+              type="radio"
+              checked={mode === 'FUND_SHARES'}
+              onChange={() => setMode('FUND_SHARES')}
+            />
+            按份额
+          </label>
+        </fieldset>
         <label>
-          <span>投资账户</span>
-          <select required value={accountId} onChange={(event) => setAccountId(event.target.value)}>
-            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          <span>持仓分组</span>
+          <select required value={groupId} onChange={(event) => setGroupId(event.target.value)}>
+            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
         </label>
         <label>
@@ -208,7 +199,7 @@ export function FundPositionDialog({
               <input required inputMode="decimal" placeholder="亏损填负数，如 -320" value={holdingProfit} onChange={(event) => setHoldingProfit(event.target.value)} />
             </label>
             <p className="fund-input-note">
-              优先使用该日官方净值；当天尚未公布时，使用此前最近一条官方净值，并保留实际净值日期。
+              保存时实时获取盘中估值并立即推算份额；盘中估值不可用时自动使用最新官方净值。
             </p>
             <dl className="position-preview" aria-label="基金成本预览">
               <div><dt>推算总成本</dt><dd>{totalCostPreview ? formatCurrency(totalCostPreview) : '—'}</dd></div>
@@ -251,7 +242,7 @@ export function FundPositionDialog({
             重新加载最新持仓
           </button>
         )}
-        <button className="primary-button" disabled={mutation.isPending || accountId === ''} type="submit">
+        <button className="primary-button" disabled={mutation.isPending || groupId === ''} type="submit">
           {mutation.isPending ? '正在保存…' : position === undefined ? '保存持仓' : '保存修改'}
         </button>
       </form>

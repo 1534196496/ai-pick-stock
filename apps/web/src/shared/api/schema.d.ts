@@ -188,7 +188,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/investment-accounts": {
+    "/api/v1/market-data/schedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -196,48 +196,20 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Investment Accounts
-         * @description 分页返回当前会话用户的投资账户。
+         * Get Market Data Schedule
+         * @description 返回后台 Worker 当前使用的定时任务配置。
          */
-        get: operations["list_investment_accounts_api_v1_investment_accounts_get"];
-        put?: never;
+        get: operations["get_market_data_schedule_api_v1_market_data_schedule_get"];
         /**
-         * Create Investment Account
-         * @description 为当前用户创建名称唯一的人民币投资账户。
+         * Update Market Data Schedule
+         * @description 更新后台 Job 频率，Worker 最迟十秒内检测版本并重新排期。
          */
-        post: operations["create_investment_account_api_v1_investment_accounts_post"];
+        put: operations["update_market_data_schedule_api_v1_market_data_schedule_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/v1/investment-accounts/{account_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Investment Account
-         * @description 返回当前用户拥有的指定账户。
-         */
-        get: operations["get_investment_account_api_v1_investment_accounts__account_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Investment Account
-         * @description 删除当前用户空账户。
-         */
-        delete: operations["delete_investment_account_api_v1_investment_accounts__account_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Investment Account
-         * @description 按乐观锁版本重命名或调整当前用户账户排序。
-         */
-        patch: operations["update_investment_account_api_v1_investment_accounts__account_id__patch"];
         trace?: never;
     };
     "/api/v1/market-data/status": {
@@ -260,6 +232,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/market-data/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manually Sync Market Data
+         * @description 复用 Worker 同步服务立即运行指定任务，并返回任务最终状态。
+         */
+        post: operations["manually_sync_market_data_api_v1_market_data_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/position-summary": {
         parameters: {
             query?: never;
@@ -269,7 +261,7 @@ export interface paths {
         };
         /**
          * Get Position Summary
-         * @description 返回全部账户或指定账户的权威口径持仓汇总。
+         * @description 返回全部分组或指定分组的持仓汇总。
          */
         get: operations["get_position_summary_api_v1_position_summary_get"];
         put?: never;
@@ -289,13 +281,13 @@ export interface paths {
         };
         /**
          * List Positions
-         * @description 分页返回当前用户全部或指定账户的持仓。
+         * @description 分页返回当前用户全部或指定分组的持仓。
          */
         get: operations["list_positions_api_v1_positions_get"];
         put?: never;
         /**
          * Create Position
-         * @description 按录入模式为当前用户账户创建唯一股票或基金持仓。
+         * @description 按录入模式为当前用户分组创建唯一股票或基金持仓。
          */
         post: operations["create_position_api_v1_positions_post"];
         delete?: never;
@@ -327,7 +319,7 @@ export interface paths {
         head?: never;
         /**
          * Update Position
-         * @description 按录入模式和版本部分修改持仓或移动账户。
+         * @description 按录入模式和版本部分修改持仓或移动分组。
          */
         patch: operations["update_position_api_v1_positions__position_id__patch"];
         trace?: never;
@@ -457,13 +449,13 @@ export interface components {
          * @description 接收基金当前金额和可正可负的持有收益。
          */
         CreateFundAmountPositionRequest: {
-            /**
-             * Accountid
-             * Format: uuid
-             */
-            accountId: string;
             /** Currentvalue */
             currentValue: string;
+            /**
+             * Groupid
+             * Format: uuid
+             */
+            groupId: string;
             /** Holdingprofit */
             holdingProfit: string;
             /**
@@ -487,14 +479,14 @@ export interface components {
          * @description 接收基金份额及总成本或平均成本二选一输入。
          */
         CreateFundSharesPositionRequest: {
-            /**
-             * Accountid
-             * Format: uuid
-             */
-            accountId: string;
             /** Averagecost */
             averageCost?: string | null;
             costInputMode: components["schemas"]["CostInputMode"];
+            /**
+             * Groupid
+             * Format: uuid
+             */
+            groupId: string;
             /**
              * Inputdate
              * Format: date
@@ -516,26 +508,18 @@ export interface components {
             totalCost?: string | null;
         };
         /**
-         * CreateInvestmentAccountRequest
-         * @description 接收待规范化的新账户名称。
-         */
-        CreateInvestmentAccountRequest: {
-            /** Name */
-            name: string;
-        };
-        /**
          * CreateStockPositionRequest
          * @description 接收股票数量及总成本或平均成本二选一输入。
          */
         CreateStockPositionRequest: {
-            /**
-             * Accountid
-             * Format: uuid
-             */
-            accountId: string;
             /** Averagecost */
             averageCost?: string | null;
             costInputMode: components["schemas"]["CostInputMode"];
+            /**
+             * Groupid
+             * Format: uuid
+             */
+            groupId: string;
             /**
              * Inputdate
              * Format: date
@@ -622,6 +606,10 @@ export interface components {
             /** Marketvalue */
             marketValue: string;
             price: components["schemas"]["LatestPriceResponse"];
+            /** Returnrate */
+            returnRate: string;
+            /** Todayprofit */
+            todayProfit?: string | null;
         };
         /**
          * Exchange
@@ -694,49 +682,6 @@ export interface components {
             updatedAt: string;
         };
         /**
-         * InvestmentAccountListResponse
-         * @description 返回稳定分页账户列表。
-         */
-        InvestmentAccountListResponse: {
-            /** Items */
-            items: components["schemas"]["InvestmentAccountResponse"][];
-            /** Page */
-            page: number;
-            /** Pagesize */
-            pageSize: number;
-            /** Total */
-            total: number;
-        };
-        /**
-         * InvestmentAccountResponse
-         * @description 返回当前用户可见的投资账户。
-         */
-        InvestmentAccountResponse: {
-            /** Basecurrency */
-            baseCurrency: string;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-            /** Sortorder */
-            sortOrder: number;
-            /**
-             * Updatedat
-             * Format: date-time
-             */
-            updatedAt: string;
-            /** Version */
-            version: number;
-        };
-        /**
          * LatestPriceResponse
          * @description 返回一种明确口径的最新价格及其业务时间和抓取时间。
          */
@@ -745,6 +690,8 @@ export interface components {
             asOfAt: string | null;
             /** Asofdate */
             asOfDate: string | null;
+            /** Changerate */
+            changeRate: string | null;
             /**
              * Fetchedat
              * Format: date-time
@@ -766,6 +713,29 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * ManualMarketDataSyncRequest
+         * @description 指定一次人工同步需要执行的一个或多个任务。
+         */
+        ManualMarketDataSyncRequest: {
+            /** Jobtypes */
+            jobTypes: components["schemas"]["SyncJobType"][];
+        };
+        /**
+         * ManualMarketDataSyncResponse
+         * @description 汇总人工同步结束后的各任务状态和因锁跳过项。
+         */
+        ManualMarketDataSyncResponse: {
+            /**
+             * Generatedat
+             * Format: date-time
+             */
+            generatedAt: string;
+            /** Jobs */
+            jobs: components["schemas"]["MarketDataJobStatusResponse"][];
+            /** Skippedjobtypes */
+            skippedJobTypes: components["schemas"]["SyncJobType"][];
         };
         /**
          * Market
@@ -794,6 +764,44 @@ export interface components {
             status: components["schemas"]["SyncStatus"];
             /** Succeededcount */
             succeededCount: number;
+        };
+        /**
+         * MarketDataScheduleResponse
+         * @description 返回后台同步频率及运行期开关状态。
+         */
+        MarketDataScheduleResponse: {
+            /** Fundestimaterefreshseconds */
+            fundEstimateRefreshSeconds: number;
+            /** Fundestimatesyncenabled */
+            fundEstimateSyncEnabled: boolean;
+            /**
+             * Instrumentsynctime
+             * Format: time
+             */
+            instrumentSyncTime: string;
+            /** Livesyncenabled */
+            liveSyncEnabled: boolean;
+            /** Officialnavrefreshseconds */
+            officialNavRefreshSeconds: number;
+            /**
+             * Officialnavwindowend
+             * Format: time
+             */
+            officialNavWindowEnd: string;
+            /**
+             * Officialnavwindowstart
+             * Format: time
+             */
+            officialNavWindowStart: string;
+            /** Stockrefreshseconds */
+            stockRefreshSeconds: number;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            /** Version */
+            version: number;
         };
         /**
          * MarketDataStatusResponse
@@ -835,12 +843,6 @@ export interface components {
             message: string;
         };
         /**
-         * PositionInputMode
-         * @description 区分股票份额、基金金额和基金份额三种录入语义。
-         * @enum {string}
-         */
-        PositionInputMode: "STOCK_SHARES" | "FUND_AMOUNT" | "FUND_SHARES";
-        /**
          * PositionInstrumentResponse
          * @description 返回持仓列表稳定需要的资产身份。
          */
@@ -875,17 +877,11 @@ export interface components {
         };
         /**
          * PositionResponse
-         * @description 返回原始输入、规范化值、资产身份和乐观锁版本。
+         * @description 返回精简持仓投影、动态估值、资产身份和乐观锁版本。
          */
         PositionResponse: {
-            /**
-             * Accountid
-             * Format: uuid
-             */
-            accountId: string;
             /** Averagecost */
             averageCost: string | null;
-            costInputMode: components["schemas"]["CostInputMode"] | null;
             /**
              * Createdat
              * Format: date-time
@@ -893,35 +889,31 @@ export interface components {
             createdAt: string;
             estimatedValuation?: components["schemas"]["EstimatedFundValuationResponse"] | null;
             /**
+             * Firsttradedate
+             * Format: date
+             */
+            firstTradeDate: string;
+            /**
+             * Groupid
+             * Format: uuid
+             */
+            groupId: string;
+            /**
              * Id
              * Format: uuid
              */
             id: string;
-            /** Inputaveragecost */
-            inputAverageCost: string | null;
-            /** Inputcurrentvalue */
-            inputCurrentValue: string | null;
+            instrument: components["schemas"]["PositionInstrumentResponse"];
             /**
-             * Inputdate
+             * Lasttradedate
              * Format: date
              */
-            inputDate: string;
-            /** Inputholdingprofit */
-            inputHoldingProfit: string | null;
-            inputMode: components["schemas"]["PositionInputMode"];
-            /** Inputquantity */
-            inputQuantity: string | null;
-            /** Inputtotalcost */
-            inputTotalCost: string | null;
-            instrument: components["schemas"]["PositionInstrumentResponse"];
+            lastTradeDate: string;
             /** Quantity */
             quantity: string | null;
-            /** Quantitybasisnav */
-            quantityBasisNav: string | null;
-            /** Quantitybasisnavdate */
-            quantityBasisNavDate: string | null;
-            /** Quantityestimated */
-            quantityEstimated: boolean;
+            /** Realizedprofit */
+            realizedProfit: string;
+            status: components["schemas"]["PositionStatus"];
             /** Totalcost */
             totalCost: string;
             /**
@@ -934,19 +926,33 @@ export interface components {
             version: number;
         };
         /**
+         * PositionStatus
+         * @description 表示持仓当前投影是否持有、清仓或等待历史数据补齐。
+         * @enum {string}
+         */
+        PositionStatus: "OPEN" | "CLOSED" | "PENDING";
+        /**
          * PositionSummaryResponse
          * @description 返回组合成本、价格完整性和可选权威估值汇总。
          */
         PositionSummaryResponse: {
-            /** Accountid */
-            accountId: string | null;
             /**
              * Calculatedat
              * Format: date-time
              */
             calculatedAt: string;
+            /** Estimatedfundpositioncount */
+            estimatedFundPositionCount: number;
+            /** Groupid */
+            groupId: string | null;
             /** Holdingprofit */
             holdingProfit: string | null;
+            /** Intradayholdingprofit */
+            intradayHoldingProfit: string | null;
+            /** Intradaymarketvalue */
+            intradayMarketValue: string | null;
+            /** Intradayreturnrate */
+            intradayReturnRate: string | null;
             /** Marketvalue */
             marketValue: string | null;
             /** Missingpricepositionids */
@@ -960,6 +966,13 @@ export interface components {
             /** Stalepositioncount */
             stalePositionCount: number;
             status: components["schemas"]["ValuationStatus"];
+            /** Todayprofit */
+            todayProfit?: string | null;
+            /**
+             * Todayprofitpositioncount
+             * @default 0
+             */
+            todayProfitPositionCount: number;
             /** Totalcost */
             totalCost: string;
         };
@@ -975,6 +988,8 @@ export interface components {
             price: components["schemas"]["LatestPriceResponse"];
             /** Returnrate */
             returnRate: string;
+            /** Todayprofit */
+            todayProfit?: string | null;
         };
         /**
          * PriceType
@@ -1047,10 +1062,10 @@ export interface components {
          * @description 接收带版本号的基金金额模式部分更新。
          */
         UpdateFundAmountPositionRequest: {
-            /** Accountid */
-            accountId?: string | null;
             /** Currentvalue */
             currentValue?: string | null;
+            /** Groupid */
+            groupId?: string | null;
             /** Holdingprofit */
             holdingProfit?: string | null;
             /** Inputdate */
@@ -1068,11 +1083,11 @@ export interface components {
          * @description 接收带版本号的基金份额模式部分更新。
          */
         UpdateFundSharesPositionRequest: {
-            /** Accountid */
-            accountId?: string | null;
             /** Averagecost */
             averageCost?: string | null;
             costInputMode?: components["schemas"]["CostInputMode"] | null;
+            /** Groupid */
+            groupId?: string | null;
             /** Inputdate */
             inputDate?: string | null;
             /**
@@ -1088,27 +1103,42 @@ export interface components {
             version: number;
         };
         /**
-         * UpdateInvestmentAccountRequest
-         * @description 使用版本号选择性修改名称或排序。
+         * UpdateMarketDataScheduleRequest
+         * @description 校验用户可修改的全站行情调度配置。
          */
-        UpdateInvestmentAccountRequest: {
-            /** Name */
-            name?: string | null;
-            /** Sortorder */
-            sortOrder?: number | null;
-            /** Version */
-            version: number;
+        UpdateMarketDataScheduleRequest: {
+            /** Fundestimaterefreshseconds */
+            fundEstimateRefreshSeconds: number;
+            /**
+             * Instrumentsynctime
+             * Format: time
+             */
+            instrumentSyncTime: string;
+            /** Officialnavrefreshseconds */
+            officialNavRefreshSeconds: number;
+            /**
+             * Officialnavwindowend
+             * Format: time
+             */
+            officialNavWindowEnd: string;
+            /**
+             * Officialnavwindowstart
+             * Format: time
+             */
+            officialNavWindowStart: string;
+            /** Stockrefreshseconds */
+            stockRefreshSeconds: number;
         };
         /**
          * UpdateStockPositionRequest
          * @description 接收带版本号的股票持仓部分更新。
          */
         UpdateStockPositionRequest: {
-            /** Accountid */
-            accountId?: string | null;
             /** Averagecost */
             averageCost?: string | null;
             costInputMode?: components["schemas"]["CostInputMode"] | null;
+            /** Groupid */
+            groupId?: string | null;
             /** Inputdate */
             inputDate?: string | null;
             /**
@@ -1184,7 +1214,7 @@ export interface components {
         };
         /**
          * WatchlistGroupResponse
-         * @description 返回用户可见的自选分组及标的数量。
+         * @description 返回用户可见的统一分组及自选、持仓数量。
          */
         WatchlistGroupResponse: {
             /**
@@ -1203,6 +1233,8 @@ export interface components {
             itemCount: number;
             /** Name */
             name: string;
+            /** Positioncount */
+            positionCount: number;
             /** Sortorder */
             sortOrder: number;
             /**
@@ -1578,12 +1610,9 @@ export interface operations {
             };
         };
     };
-    list_investment_accounts_api_v1_investment_accounts_get: {
+    get_market_data_schedule_api_v1_market_data_schedule_get: {
         parameters: {
-            query?: {
-                page?: number;
-                pageSize?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -1596,21 +1625,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvestmentAccountListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["MarketDataScheduleResponse"];
                 };
             };
         };
     };
-    create_investment_account_api_v1_investment_accounts_post: {
+    update_market_data_schedule_api_v1_market_data_schedule_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -1619,102 +1639,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateInvestmentAccountRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvestmentAccountResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_investment_account_api_v1_investment_accounts__account_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvestmentAccountResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_investment_account_api_v1_investment_accounts__account_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_investment_account_api_v1_investment_accounts__account_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateInvestmentAccountRequest"];
+                "application/json": components["schemas"]["UpdateMarketDataScheduleRequest"];
             };
         };
         responses: {
@@ -1724,7 +1649,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvestmentAccountResponse"];
+                    "application/json": components["schemas"]["MarketDataScheduleResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1758,10 +1683,43 @@ export interface operations {
             };
         };
     };
+    manually_sync_market_data_api_v1_market_data_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualMarketDataSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualMarketDataSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_position_summary_api_v1_position_summary_get: {
         parameters: {
             query?: {
-                accountId?: string | null;
+                groupId?: string | null;
             };
             header?: never;
             path?: never;
@@ -1792,7 +1750,7 @@ export interface operations {
     list_positions_api_v1_positions_get: {
         parameters: {
             query?: {
-                accountId?: string | null;
+                groupId?: string | null;
                 page?: number;
                 pageSize?: number;
             };

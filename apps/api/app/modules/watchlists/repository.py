@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.instruments.models import Instrument
+from app.modules.portfolios.models import Position
 from app.modules.watchlists.domain import WatchlistGroupRecord, WatchlistItemRecord
 from app.modules.watchlists.models import WatchlistGroup, WatchlistItem
 
@@ -98,6 +99,16 @@ class WatchlistRepository:
         )
         return {group_id: int(count) for group_id, count in rows.tuples()}
 
+    async def position_counts_for_user(self, *, user_id: UUID) -> dict[UUID, int]:
+        """批量返回当前用户各分组的持仓数量。"""
+        rows = await self._session.execute(
+            select(WatchlistGroup.id, func.count(Position.id))
+            .outerjoin(Position, Position.group_id == WatchlistGroup.id)
+            .where(WatchlistGroup.user_id == user_id)
+            .group_by(WatchlistGroup.id)
+        )
+        return {group_id: int(count) for group_id, count in rows.tuples()}
+
     async def next_group_sort_order(self, *, user_id: UUID) -> int:
         """返回当前用户最大分组排序值之后的位置。"""
         value = await self._session.scalar(
@@ -159,18 +170,17 @@ class WatchlistRepository:
             async with self._session.begin_nested():
                 group = await self._session.scalar(statement)
         except IntegrityError as error:
-            if self._constraint_name(error) == "uq_watchlist_groups_user_name":
+            if self._constraint_name(error) == "uq_portfolio_groups_user_name":
                 raise WatchlistNameConflictError from error
             raise
         return self._to_group_record(group) if group is not None else None
 
-    async def group_has_items_for_user(self, *, user_id: UUID, group_id: UUID) -> bool:
-        """检查当前用户分组是否仍包含观察标的。"""
+    async def group_has_content_for_user(self, *, user_id: UUID, group_id: UUID) -> bool:
+        """检查当前用户分组是否仍包含观察标的或持仓。"""
         value = await self._session.scalar(
             select(
-                exists().where(
-                    WatchlistItem.group_id == WatchlistGroup.id,
-                )
+                exists().where(WatchlistItem.group_id == WatchlistGroup.id)
+                | exists().where(Position.group_id == WatchlistGroup.id)
             ).where(
                 WatchlistGroup.id == group_id,
                 WatchlistGroup.user_id == user_id,
@@ -179,10 +189,9 @@ class WatchlistRepository:
         return bool(value)
 
     async def delete_empty_group_for_user(self, *, user_id: UUID, group_id: UUID) -> bool:
-        """只删除当前用户的非默认空分组。"""
-        contains_item = select(WatchlistItem.id).where(
-            WatchlistItem.group_id == WatchlistGroup.id
-        )
+        """只删除当前用户不含自选和持仓的非默认分组。"""
+        contains_item = select(WatchlistItem.id).where(WatchlistItem.group_id == WatchlistGroup.id)
+        contains_position = select(Position.id).where(Position.group_id == WatchlistGroup.id)
         statement = (
             delete(WatchlistGroup)
             .where(
@@ -190,6 +199,7 @@ class WatchlistRepository:
                 WatchlistGroup.user_id == user_id,
                 WatchlistGroup.is_default.is_(False),
                 ~exists(contains_item),
+                ~exists(contains_position),
             )
             .returning(WatchlistGroup.id)
         )

@@ -86,14 +86,6 @@ class AuthRepositoryContract(Protocol):
         ...
 
 
-class RegistrationAccountContract(Protocol):
-    """限定注册用例可调用的默认投资账户初始化能力。"""
-
-    async def create_default_for_user(self, *, user_id: UUID) -> object:
-        """为新用户幂等创建默认账户。"""
-        ...
-
-
 class RegistrationWatchlistContract(Protocol):
     """限定注册用例可调用的默认自选分组初始化能力。"""
 
@@ -139,13 +131,11 @@ class AuthService:
         self,
         repository: AuthRepositoryContract,
         password_manager: PasswordManager | None = None,
-        account_initializer: RegistrationAccountContract | None = None,
         watchlist_initializer: RegistrationWatchlistContract | None = None,
     ) -> None:
-        """注入认证持久化、密码策略和两个可选默认资源初始化契约。"""
+        """注入认证持久化、密码策略和可选默认分组初始化契约。"""
         self._repository = repository
         self._password_manager = password_manager or PasswordManager()
-        self._account_initializer = account_initializer
         self._watchlist_initializer = watchlist_initializer
 
     async def register(self, *, email: str, password: str, request_id: str) -> UserIdentity:
@@ -173,10 +163,6 @@ class AuthService:
                 field="email",
             )
 
-        if self._account_initializer is not None:
-            await self._account_initializer.create_default_for_user(
-                user_id=created.identity.id,
-            )
         if self._watchlist_initializer is not None:
             await self._watchlist_initializer.create_default_for_user(
                 user_id=created.identity.id,

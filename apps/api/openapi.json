@@ -22,14 +22,14 @@
       "CreateFundAmountPositionRequest": {
         "description": "接收基金当前金额和可正可负的持有收益。",
         "properties": {
-          "accountId": {
-            "format": "uuid",
-            "title": "Accountid",
-            "type": "string"
-          },
           "currentValue": {
             "pattern": "^-?\\d+(\\.\\d+)?$",
             "title": "Currentvalue",
+            "type": "string"
+          },
+          "groupId": {
+            "format": "uuid",
+            "title": "Groupid",
             "type": "string"
           },
           "holdingProfit": {
@@ -55,7 +55,7 @@
         },
         "required": [
           "inputMode",
-          "accountId",
+          "groupId",
           "instrumentId",
           "inputDate",
           "currentValue",
@@ -67,11 +67,6 @@
       "CreateFundSharesPositionRequest": {
         "description": "接收基金份额及总成本或平均成本二选一输入。",
         "properties": {
-          "accountId": {
-            "format": "uuid",
-            "title": "Accountid",
-            "type": "string"
-          },
           "averageCost": {
             "anyOf": [
               {
@@ -86,6 +81,11 @@
           },
           "costInputMode": {
             "$ref": "#/components/schemas/CostInputMode"
+          },
+          "groupId": {
+            "format": "uuid",
+            "title": "Groupid",
+            "type": "string"
           },
           "inputDate": {
             "format": "date",
@@ -122,7 +122,7 @@
         },
         "required": [
           "inputMode",
-          "accountId",
+          "groupId",
           "instrumentId",
           "inputDate",
           "quantity",
@@ -131,28 +131,9 @@
         "title": "CreateFundSharesPositionRequest",
         "type": "object"
       },
-      "CreateInvestmentAccountRequest": {
-        "description": "接收待规范化的新账户名称。",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "CreateInvestmentAccountRequest",
-        "type": "object"
-      },
       "CreateStockPositionRequest": {
         "description": "接收股票数量及总成本或平均成本二选一输入。",
         "properties": {
-          "accountId": {
-            "format": "uuid",
-            "title": "Accountid",
-            "type": "string"
-          },
           "averageCost": {
             "anyOf": [
               {
@@ -167,6 +148,11 @@
           },
           "costInputMode": {
             "$ref": "#/components/schemas/CostInputMode"
+          },
+          "groupId": {
+            "format": "uuid",
+            "title": "Groupid",
+            "type": "string"
           },
           "inputDate": {
             "format": "date",
@@ -203,7 +189,7 @@
         },
         "required": [
           "inputMode",
-          "accountId",
+          "groupId",
           "instrumentId",
           "inputDate",
           "quantity",
@@ -333,12 +319,30 @@
           },
           "price": {
             "$ref": "#/components/schemas/LatestPriceResponse"
+          },
+          "returnRate": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Returnrate",
+            "type": "string"
+          },
+          "todayProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todayprofit"
           }
         },
         "required": [
           "price",
           "marketValue",
-          "holdingProfit"
+          "holdingProfit",
+          "returnRate"
         ],
         "title": "EstimatedFundValuationResponse",
         "type": "object"
@@ -508,85 +512,6 @@
         "title": "InstrumentResponse",
         "type": "object"
       },
-      "InvestmentAccountListResponse": {
-        "description": "返回稳定分页账户列表。",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/InvestmentAccountResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "page": {
-            "title": "Page",
-            "type": "integer"
-          },
-          "pageSize": {
-            "title": "Pagesize",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "page",
-          "pageSize",
-          "total"
-        ],
-        "title": "InvestmentAccountListResponse",
-        "type": "object"
-      },
-      "InvestmentAccountResponse": {
-        "description": "返回当前用户可见的投资账户。",
-        "properties": {
-          "baseCurrency": {
-            "title": "Basecurrency",
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "title": "Createdat",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "sortOrder": {
-            "title": "Sortorder",
-            "type": "integer"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "title": "Updatedat",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "baseCurrency",
-          "sortOrder",
-          "version",
-          "createdAt",
-          "updatedAt"
-        ],
-        "title": "InvestmentAccountResponse",
-        "type": "object"
-      },
       "LatestPriceResponse": {
         "description": "返回一种明确口径的最新价格及其业务时间和抓取时间。",
         "properties": {
@@ -614,6 +539,18 @@
             ],
             "title": "Asofdate"
           },
+          "changeRate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changerate"
+          },
           "fetchedAt": {
             "format": "date-time",
             "title": "Fetchedat",
@@ -638,6 +575,7 @@
         "required": [
           "priceType",
           "value",
+          "changeRate",
           "asOfDate",
           "asOfAt",
           "fetchedAt",
@@ -664,6 +602,56 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "ManualMarketDataSyncRequest": {
+        "description": "指定一次人工同步需要执行的一个或多个任务。",
+        "properties": {
+          "jobTypes": {
+            "items": {
+              "$ref": "#/components/schemas/SyncJobType"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Jobtypes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "jobTypes"
+        ],
+        "title": "ManualMarketDataSyncRequest",
+        "type": "object"
+      },
+      "ManualMarketDataSyncResponse": {
+        "description": "汇总人工同步结束后的各任务状态和因锁跳过项。",
+        "properties": {
+          "generatedAt": {
+            "format": "date-time",
+            "title": "Generatedat",
+            "type": "string"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/MarketDataJobStatusResponse"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "skippedJobTypes": {
+            "items": {
+              "$ref": "#/components/schemas/SyncJobType"
+            },
+            "title": "Skippedjobtypes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "jobs",
+          "skippedJobTypes"
+        ],
+        "title": "ManualMarketDataSyncResponse",
         "type": "object"
       },
       "Market": {
@@ -727,6 +715,69 @@
           "freshness"
         ],
         "title": "MarketDataJobStatusResponse",
+        "type": "object"
+      },
+      "MarketDataScheduleResponse": {
+        "description": "返回后台同步频率及运行期开关状态。",
+        "properties": {
+          "fundEstimateRefreshSeconds": {
+            "title": "Fundestimaterefreshseconds",
+            "type": "integer"
+          },
+          "fundEstimateSyncEnabled": {
+            "title": "Fundestimatesyncenabled",
+            "type": "boolean"
+          },
+          "instrumentSyncTime": {
+            "format": "time",
+            "title": "Instrumentsynctime",
+            "type": "string"
+          },
+          "liveSyncEnabled": {
+            "title": "Livesyncenabled",
+            "type": "boolean"
+          },
+          "officialNavRefreshSeconds": {
+            "title": "Officialnavrefreshseconds",
+            "type": "integer"
+          },
+          "officialNavWindowEnd": {
+            "format": "time",
+            "title": "Officialnavwindowend",
+            "type": "string"
+          },
+          "officialNavWindowStart": {
+            "format": "time",
+            "title": "Officialnavwindowstart",
+            "type": "string"
+          },
+          "stockRefreshSeconds": {
+            "title": "Stockrefreshseconds",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stockRefreshSeconds",
+          "fundEstimateRefreshSeconds",
+          "officialNavRefreshSeconds",
+          "officialNavWindowStart",
+          "officialNavWindowEnd",
+          "instrumentSyncTime",
+          "liveSyncEnabled",
+          "fundEstimateSyncEnabled",
+          "version",
+          "updatedAt"
+        ],
+        "title": "MarketDataScheduleResponse",
         "type": "object"
       },
       "MarketDataStatusResponse": {
@@ -798,16 +849,6 @@
         ],
         "title": "PasswordResetRequestResponse",
         "type": "object"
-      },
-      "PositionInputMode": {
-        "description": "区分股票份额、基金金额和基金份额三种录入语义。",
-        "enum": [
-          "STOCK_SHARES",
-          "FUND_AMOUNT",
-          "FUND_SHARES"
-        ],
-        "title": "PositionInputMode",
-        "type": "string"
       },
       "PositionInstrumentResponse": {
         "description": "返回持仓列表稳定需要的资产身份。",
@@ -883,13 +924,8 @@
         "type": "object"
       },
       "PositionResponse": {
-        "description": "返回原始输入、规范化值、资产身份和乐观锁版本。",
+        "description": "返回精简持仓投影、动态估值、资产身份和乐观锁版本。",
         "properties": {
-          "accountId": {
-            "format": "uuid",
-            "title": "Accountid",
-            "type": "string"
-          },
           "averageCost": {
             "anyOf": [
               {
@@ -901,16 +937,6 @@
               }
             ],
             "title": "Averagecost"
-          },
-          "costInputMode": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CostInputMode"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "createdAt": {
             "format": "date-time",
@@ -927,81 +953,28 @@
               }
             ]
           },
+          "firstTradeDate": {
+            "format": "date",
+            "title": "Firsttradedate",
+            "type": "string"
+          },
+          "groupId": {
+            "format": "uuid",
+            "title": "Groupid",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
-          "inputAverageCost": {
-            "anyOf": [
-              {
-                "pattern": "^-?\\d+(\\.\\d+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inputaveragecost"
-          },
-          "inputCurrentValue": {
-            "anyOf": [
-              {
-                "pattern": "^-?\\d+(\\.\\d+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inputcurrentvalue"
-          },
-          "inputDate": {
-            "format": "date",
-            "title": "Inputdate",
-            "type": "string"
-          },
-          "inputHoldingProfit": {
-            "anyOf": [
-              {
-                "pattern": "^-?\\d+(\\.\\d+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inputholdingprofit"
-          },
-          "inputMode": {
-            "$ref": "#/components/schemas/PositionInputMode"
-          },
-          "inputQuantity": {
-            "anyOf": [
-              {
-                "pattern": "^-?\\d+(\\.\\d+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inputquantity"
-          },
-          "inputTotalCost": {
-            "anyOf": [
-              {
-                "pattern": "^-?\\d+(\\.\\d+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inputtotalcost"
-          },
           "instrument": {
             "$ref": "#/components/schemas/PositionInstrumentResponse"
+          },
+          "lastTradeDate": {
+            "format": "date",
+            "title": "Lasttradedate",
+            "type": "string"
           },
           "quantity": {
             "anyOf": [
@@ -1015,33 +988,13 @@
             ],
             "title": "Quantity"
           },
-          "quantityBasisNav": {
-            "anyOf": [
-              {
-                "pattern": "^-?\\d+(\\.\\d+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Quantitybasisnav"
+          "realizedProfit": {
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Realizedprofit",
+            "type": "string"
           },
-          "quantityBasisNavDate": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Quantitybasisnavdate"
-          },
-          "quantityEstimated": {
-            "title": "Quantityestimated",
-            "type": "boolean"
+          "status": {
+            "$ref": "#/components/schemas/PositionStatus"
           },
           "totalCost": {
             "pattern": "^-?\\d+(\\.\\d+)?$",
@@ -1070,22 +1023,15 @@
         },
         "required": [
           "id",
-          "accountId",
+          "groupId",
           "instrument",
-          "inputMode",
-          "costInputMode",
-          "inputDate",
-          "inputQuantity",
-          "inputTotalCost",
-          "inputAverageCost",
-          "inputCurrentValue",
-          "inputHoldingProfit",
           "quantity",
           "totalCost",
           "averageCost",
-          "quantityEstimated",
-          "quantityBasisNav",
-          "quantityBasisNavDate",
+          "realizedProfit",
+          "status",
+          "firstTradeDate",
+          "lastTradeDate",
           "version",
           "createdAt",
           "updatedAt"
@@ -1093,10 +1039,29 @@
         "title": "PositionResponse",
         "type": "object"
       },
+      "PositionStatus": {
+        "description": "表示持仓当前投影是否持有、清仓或等待历史数据补齐。",
+        "enum": [
+          "OPEN",
+          "CLOSED",
+          "PENDING"
+        ],
+        "title": "PositionStatus",
+        "type": "string"
+      },
       "PositionSummaryResponse": {
         "description": "返回组合成本、价格完整性和可选权威估值汇总。",
         "properties": {
-          "accountId": {
+          "calculatedAt": {
+            "format": "date-time",
+            "title": "Calculatedat",
+            "type": "string"
+          },
+          "estimatedFundPositionCount": {
+            "title": "Estimatedfundpositioncount",
+            "type": "integer"
+          },
+          "groupId": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -1106,12 +1071,7 @@
                 "type": "null"
               }
             ],
-            "title": "Accountid"
-          },
-          "calculatedAt": {
-            "format": "date-time",
-            "title": "Calculatedat",
-            "type": "string"
+            "title": "Groupid"
           },
           "holdingProfit": {
             "anyOf": [
@@ -1124,6 +1084,42 @@
               }
             ],
             "title": "Holdingprofit"
+          },
+          "intradayHoldingProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intradayholdingprofit"
+          },
+          "intradayMarketValue": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intradaymarketvalue"
+          },
+          "intradayReturnRate": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intradayreturnrate"
           },
           "marketValue": {
             "anyOf": [
@@ -1172,6 +1168,23 @@
           "status": {
             "$ref": "#/components/schemas/ValuationStatus"
           },
+          "todayProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todayprofit"
+          },
+          "todayProfitPositionCount": {
+            "default": 0,
+            "title": "Todayprofitpositioncount",
+            "type": "integer"
+          },
           "totalCost": {
             "pattern": "^-?\\d+(\\.\\d+)?$",
             "title": "Totalcost",
@@ -1179,7 +1192,7 @@
           }
         },
         "required": [
-          "accountId",
+          "groupId",
           "status",
           "positionCount",
           "pricedPositionCount",
@@ -1189,6 +1202,10 @@
           "marketValue",
           "holdingProfit",
           "returnRate",
+          "intradayMarketValue",
+          "intradayHoldingProfit",
+          "intradayReturnRate",
+          "estimatedFundPositionCount",
           "calculatedAt"
         ],
         "title": "PositionSummaryResponse",
@@ -1214,6 +1231,18 @@
             "pattern": "^-?\\d+(\\.\\d+)?$",
             "title": "Returnrate",
             "type": "string"
+          },
+          "todayProfit": {
+            "anyOf": [
+              {
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todayprofit"
           }
         },
         "required": [
@@ -1339,18 +1368,6 @@
       "UpdateFundAmountPositionRequest": {
         "description": "接收带版本号的基金金额模式部分更新。",
         "properties": {
-          "accountId": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accountid"
-          },
           "currentValue": {
             "anyOf": [
               {
@@ -1362,6 +1379,18 @@
               }
             ],
             "title": "Currentvalue"
+          },
+          "groupId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Groupid"
           },
           "holdingProfit": {
             "anyOf": [
@@ -1408,18 +1437,6 @@
       "UpdateFundSharesPositionRequest": {
         "description": "接收带版本号的基金份额模式部分更新。",
         "properties": {
-          "accountId": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accountid"
-          },
           "averageCost": {
             "anyOf": [
               {
@@ -1441,6 +1458,18 @@
                 "type": "null"
               }
             ]
+          },
+          "groupId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Groupid"
           },
           "inputDate": {
             "anyOf": [
@@ -1496,59 +1525,57 @@
         "title": "UpdateFundSharesPositionRequest",
         "type": "object"
       },
-      "UpdateInvestmentAccountRequest": {
-        "description": "使用版本号选择性修改名称或排序。",
+      "UpdateMarketDataScheduleRequest": {
+        "description": "校验用户可修改的全站行情调度配置。",
         "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+          "fundEstimateRefreshSeconds": {
+            "maximum": 3600.0,
+            "minimum": 30.0,
+            "title": "Fundestimaterefreshseconds",
+            "type": "integer"
           },
-          "sortOrder": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sortorder"
+          "instrumentSyncTime": {
+            "format": "time",
+            "title": "Instrumentsynctime",
+            "type": "string"
           },
-          "version": {
-            "minimum": 1.0,
-            "title": "Version",
+          "officialNavRefreshSeconds": {
+            "maximum": 3600.0,
+            "minimum": 120.0,
+            "title": "Officialnavrefreshseconds",
+            "type": "integer"
+          },
+          "officialNavWindowEnd": {
+            "format": "time",
+            "title": "Officialnavwindowend",
+            "type": "string"
+          },
+          "officialNavWindowStart": {
+            "format": "time",
+            "title": "Officialnavwindowstart",
+            "type": "string"
+          },
+          "stockRefreshSeconds": {
+            "maximum": 3600.0,
+            "minimum": 15.0,
+            "title": "Stockrefreshseconds",
             "type": "integer"
           }
         },
         "required": [
-          "version"
+          "stockRefreshSeconds",
+          "fundEstimateRefreshSeconds",
+          "officialNavRefreshSeconds",
+          "officialNavWindowStart",
+          "officialNavWindowEnd",
+          "instrumentSyncTime"
         ],
-        "title": "UpdateInvestmentAccountRequest",
+        "title": "UpdateMarketDataScheduleRequest",
         "type": "object"
       },
       "UpdateStockPositionRequest": {
         "description": "接收带版本号的股票持仓部分更新。",
         "properties": {
-          "accountId": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accountid"
-          },
           "averageCost": {
             "anyOf": [
               {
@@ -1570,6 +1597,18 @@
                 "type": "null"
               }
             ]
+          },
+          "groupId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Groupid"
           },
           "inputDate": {
             "anyOf": [
@@ -1791,7 +1830,7 @@
         "type": "object"
       },
       "WatchlistGroupResponse": {
-        "description": "返回用户可见的自选分组及标的数量。",
+        "description": "返回用户可见的统一分组及自选、持仓数量。",
         "properties": {
           "createdAt": {
             "format": "date-time",
@@ -1815,6 +1854,10 @@
             "title": "Name",
             "type": "string"
           },
+          "positionCount": {
+            "title": "Positioncount",
+            "type": "integer"
+          },
           "sortOrder": {
             "title": "Sortorder",
             "type": "integer"
@@ -1835,6 +1878,7 @@
           "isDefault",
           "sortOrder",
           "itemCount",
+          "positionCount",
           "version",
           "createdAt",
           "updatedAt"
@@ -2355,201 +2399,35 @@
         ]
       }
     },
-    "/api/v1/investment-accounts": {
+    "/api/v1/market-data/schedule": {
       "get": {
-        "description": "分页返回当前会话用户的投资账户。",
-        "operationId": "list_investment_accounts_api_v1_investment_accounts_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "pageSize",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Pagesize",
-              "type": "integer"
-            }
-          }
-        ],
+        "description": "返回后台 Worker 当前使用的定时任务配置。",
+        "operationId": "get_market_data_schedule_api_v1_market_data_schedule_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvestmentAccountListResponse"
+                  "$ref": "#/components/schemas/MarketDataScheduleResponse"
                 }
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
-        "summary": "List Investment Accounts",
+        "summary": "Get Market Data Schedule",
         "tags": [
-          "investment-accounts"
+          "market-data"
         ]
       },
-      "post": {
-        "description": "为当前用户创建名称唯一的人民币投资账户。",
-        "operationId": "create_investment_account_api_v1_investment_accounts_post",
+      "put": {
+        "description": "更新后台 Job 频率，Worker 最迟十秒内检测版本并重新排期。",
+        "operationId": "update_market_data_schedule_api_v1_market_data_schedule_put",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateInvestmentAccountRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvestmentAccountResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Investment Account",
-        "tags": [
-          "investment-accounts"
-        ]
-      }
-    },
-    "/api/v1/investment-accounts/{account_id}": {
-      "delete": {
-        "description": "删除当前用户空账户。",
-        "operationId": "delete_investment_account_api_v1_investment_accounts__account_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Investment Account",
-        "tags": [
-          "investment-accounts"
-        ]
-      },
-      "get": {
-        "description": "返回当前用户拥有的指定账户。",
-        "operationId": "get_investment_account_api_v1_investment_accounts__account_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvestmentAccountResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Investment Account",
-        "tags": [
-          "investment-accounts"
-        ]
-      },
-      "patch": {
-        "description": "按乐观锁版本重命名或调整当前用户账户排序。",
-        "operationId": "update_investment_account_api_v1_investment_accounts__account_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateInvestmentAccountRequest"
+                "$ref": "#/components/schemas/UpdateMarketDataScheduleRequest"
               }
             }
           },
@@ -2560,7 +2438,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvestmentAccountResponse"
+                  "$ref": "#/components/schemas/MarketDataScheduleResponse"
                 }
               }
             },
@@ -2577,9 +2455,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Investment Account",
+        "summary": "Update Market Data Schedule",
         "tags": [
-          "investment-accounts"
+          "market-data"
         ]
       }
     },
@@ -2605,14 +2483,56 @@
         ]
       }
     },
+    "/api/v1/market-data/sync": {
+      "post": {
+        "description": "复用 Worker 同步服务立即运行指定任务，并返回任务最终状态。",
+        "operationId": "manually_sync_market_data_api_v1_market_data_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualMarketDataSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualMarketDataSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manually Sync Market Data",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
     "/api/v1/position-summary": {
       "get": {
-        "description": "返回全部账户或指定账户的权威口径持仓汇总。",
+        "description": "返回全部分组或指定分组的持仓汇总。",
         "operationId": "get_position_summary_api_v1_position_summary_get",
         "parameters": [
           {
             "in": "query",
-            "name": "accountId",
+            "name": "groupId",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2624,7 +2544,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Accountid"
+              "title": "Groupid"
             }
           }
         ],
@@ -2658,12 +2578,12 @@
     },
     "/api/v1/positions": {
       "get": {
-        "description": "分页返回当前用户全部或指定账户的持仓。",
+        "description": "分页返回当前用户全部或指定分组的持仓。",
         "operationId": "list_positions_api_v1_positions_get",
         "parameters": [
           {
             "in": "query",
-            "name": "accountId",
+            "name": "groupId",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2675,7 +2595,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Accountid"
+              "title": "Groupid"
             }
           },
           {
@@ -2730,7 +2650,7 @@
         ]
       },
       "post": {
-        "description": "按录入模式为当前用户账户创建唯一股票或基金持仓。",
+        "description": "按录入模式为当前用户分组创建唯一股票或基金持仓。",
         "operationId": "create_position_api_v1_positions_post",
         "requestBody": {
           "content": {
@@ -2868,7 +2788,7 @@
         ]
       },
       "patch": {
-        "description": "按录入模式和版本部分修改持仓或移动账户。",
+        "description": "按录入模式和版本部分修改持仓或移动分组。",
         "operationId": "update_position_api_v1_positions__position_id__patch",
         "parameters": [
           {

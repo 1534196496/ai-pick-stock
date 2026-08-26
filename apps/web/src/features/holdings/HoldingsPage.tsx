@@ -1,53 +1,62 @@
 import { useState } from 'react';
 
-import { useInvestmentAccounts } from '../accounts/hooks';
+import { useWatchlistGroups } from '../watchlists/hooks';
+import { WatchlistGroupDialog } from '../watchlists/WatchlistGroupDialog';
 import type { Instrument } from '../instruments/api';
 import { InstrumentDialog } from '../instruments/InstrumentDialog';
+import { MarketDataDialog } from '../market-data/MarketDataDialog';
 import { FundPositionDialog } from './FundPositionDialog';
 import { HoldingsSummary } from './HoldingsSummary';
 import type { Position } from './api';
 import { usePositions, usePositionSummary } from './hooks';
-import { PositionList } from './PositionList';
+import { PositionWorkspace } from './PositionWorkspace';
 import { StockPositionDialog } from './StockPositionDialog';
 import './holdings.css';
 
-/** 展示账户筛选、组合汇总和响应式持仓列表。 */
+type AssetType = Instrument['assetType'];
+
+/** 展示分组筛选、组合汇总和响应式持仓列表。 */
 export function HoldingsPage() {
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null | undefined>(undefined);
+  const [activeAssetType, setActiveAssetType] = useState<AssetType>('FUND');
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [instrumentSearchOpen, setInstrumentSearchOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
-  const accounts = useInvestmentAccounts();
-  const positions = usePositions(accountId);
-  const summary = usePositionSummary(accountId);
+  const [marketDataDialogOpen, setMarketDataDialogOpen] = useState(false);
+  const groups = useWatchlistGroups();
+  const groupItems = groups.data?.items ?? [];
+  const groupId = selectedGroupId === undefined ? groupItems[0]?.id ?? null : selectedGroupId;
+  const activeGroupName = groupId === null
+    ? '全部分组'
+    : groupItems.find((group) => group.id === groupId)?.name ?? '当前分组';
+  const positions = usePositions(groupId);
+  const summary = usePositionSummary(groupId);
+  const stockPositions = (positions.data?.items ?? []).filter(
+    (position) => position.instrument.assetType === 'STOCK',
+  );
+  const fundPositions = (positions.data?.items ?? []).filter(
+    (position) => position.instrument.assetType === 'FUND',
+  );
 
   return (
     <section className="ledger-page" aria-labelledby="holdings-title">
       <header className="ledger-heading holdings-heading">
         <div>
-          <p className="eyebrow">{accountId === null ? '全部账户' : '单一账户'}</p>
+          <p className="eyebrow">{activeGroupName}</p>
           <h1 id="holdings-title">持有</h1>
         </div>
-        <div className="holdings-actions">
-          <label className="account-filter">
-            <span>投资账户</span>
-            <select
-              value={accountId ?? ''}
-              onChange={(event) => setAccountId(event.target.value || null)}
-            >
-              <option value="">全部账户</option>
-              {(accounts.data?.items ?? []).map((account) => (
-                <option key={account.id} value={account.id}>{account.name}</option>
-              ))}
-            </select>
-          </label>
+        <div className="holdings-heading__actions">
+          <button className="secondary-button" type="button" onClick={() => setMarketDataDialogOpen(true)}>
+            行情刷新
+          </button>
           <button
             className="primary-button"
             type="button"
-            disabled={(accounts.data?.items.length ?? 0) === 0}
+            disabled={groupItems.length === 0}
             onClick={() => setInstrumentSearchOpen(true)}
           >
-            添加持仓
+            添加{activeAssetType === 'FUND' ? '基金' : '股票'}
           </button>
         </div>
       </header>
@@ -56,24 +65,42 @@ export function HoldingsPage() {
         isPending={summary.isPending}
         isError={summary.isError}
       />
-      <PositionList
-        items={positions.data?.items ?? []}
-        accounts={accounts.data?.items ?? []}
-        isPending={positions.isPending}
-        isError={positions.isError || accounts.isError}
+      <PositionWorkspace
+        groups={groupItems}
+        selectedGroupId={groupId}
+        activeAssetType={activeAssetType}
+        stockPositions={stockPositions}
+        fundPositions={fundPositions}
+        isPending={positions.isPending || groups.isPending}
+        isError={positions.isError || groups.isError}
+        onSelectGroup={setSelectedGroupId}
+        onCreateGroup={() => setGroupDialogOpen(true)}
+        onSelectAssetType={setActiveAssetType}
         onEdit={setEditingPosition}
       />
+      {groupDialogOpen && (
+        <WatchlistGroupDialog
+          onCreated={(group) => setSelectedGroupId(group.id)}
+          onClose={() => setGroupDialogOpen(false)}
+        />
+      )}
+      {marketDataDialogOpen && (
+        <MarketDataDialog onClose={() => setMarketDataDialogOpen(false)} />
+      )}
       <InstrumentDialog
         open={instrumentSearchOpen}
-        initialAssetType={null}
+        initialAssetType={activeAssetType}
         onClose={() => setInstrumentSearchOpen(false)}
-        onSelect={setSelectedInstrument}
+        onSelect={(instrument) => {
+          setActiveAssetType(instrument.assetType);
+          setSelectedInstrument(instrument);
+        }}
       />
       {selectedInstrument?.assetType === 'STOCK' && (
         <StockPositionDialog
           instrument={selectedInstrument}
-          accounts={accounts.data?.items ?? []}
-          defaultAccountId={accountId}
+          groups={groups.data?.items ?? []}
+          defaultGroupId={groupId}
           onExistingPosition={(position) => {
             setSelectedInstrument(null);
             setEditingPosition(position);
@@ -84,8 +111,8 @@ export function HoldingsPage() {
       {selectedInstrument?.assetType === 'FUND' && (
         <FundPositionDialog
           instrument={selectedInstrument}
-          accounts={accounts.data?.items ?? []}
-          defaultAccountId={accountId}
+          groups={groups.data?.items ?? []}
+          defaultGroupId={groupId}
           onExistingPosition={(position) => {
             setSelectedInstrument(null);
             setEditingPosition(position);
@@ -96,8 +123,8 @@ export function HoldingsPage() {
       {editingPosition?.instrument.assetType === 'STOCK' && (
         <StockPositionDialog
           instrument={editingPosition.instrument}
-          accounts={accounts.data?.items ?? []}
-          defaultAccountId={editingPosition.accountId}
+          groups={groups.data?.items ?? []}
+          defaultGroupId={editingPosition.groupId}
           position={editingPosition}
           onClose={() => setEditingPosition(null)}
         />
@@ -105,8 +132,8 @@ export function HoldingsPage() {
       {editingPosition?.instrument.assetType === 'FUND' && (
         <FundPositionDialog
           instrument={editingPosition.instrument}
-          accounts={accounts.data?.items ?? []}
-          defaultAccountId={editingPosition.accountId}
+          groups={groups.data?.items ?? []}
+          defaultGroupId={editingPosition.groupId}
           position={editingPosition}
           onClose={() => setEditingPosition(null)}
         />

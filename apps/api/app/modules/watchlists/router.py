@@ -9,15 +9,15 @@ from app.api.dependencies import (
     get_current_identity,
     get_instrument_repository,
     get_market_data_repository,
-    get_settings,
+    get_market_data_schedule_record,
     get_watchlist_repository,
 )
-from app.core.config import Settings
 from app.core.errors import ApiError
 from app.modules.auth.domain import UserIdentity
 from app.modules.instruments.repository import InstrumentRepository
 from app.modules.instruments.schemas import InstrumentResponse, LatestPriceResponse
 from app.modules.instruments.service import InstrumentView
+from app.modules.market_data.domain import MarketDataScheduleRecord
 from app.modules.market_data.repository import MarketDataRepository
 from app.modules.market_data.service import MarketDataFreshnessPolicy
 from app.modules.watchlists.domain import WatchlistGroupRecord
@@ -54,14 +54,14 @@ async def list_watchlist_groups(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistGroupListResponse:
     """返回当前用户全部自选分组及标的数量。"""
     records = await _service(
         repository,
         instrument_repository,
         market_data_repository,
-        settings,
+        schedule,
     ).list_groups(user_id=identity.id)
     return WatchlistGroupListResponse(items=[_group_response(record) for record in records])
 
@@ -83,7 +83,7 @@ async def create_watchlist_group(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistGroupResponse:
     """为当前用户创建名称唯一的普通自选分组。"""
     try:
@@ -91,7 +91,7 @@ async def create_watchlist_group(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).create_group(user_id=identity.id, name=payload.name)
     except WatchlistError as error:
         raise _api_error(error) from error
@@ -111,7 +111,7 @@ async def get_watchlist_group(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistGroupResponse:
     """返回当前用户拥有的指定自选分组。"""
     try:
@@ -119,7 +119,7 @@ async def get_watchlist_group(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).get_group(user_id=identity.id, group_id=group_id)
     except WatchlistError as error:
         raise _api_error(error) from error
@@ -140,7 +140,7 @@ async def update_watchlist_group(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistGroupResponse:
     """按版本重命名或调整当前用户自选分组排序。"""
     try:
@@ -148,7 +148,7 @@ async def update_watchlist_group(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).update_group(
             user_id=identity.id,
             group_id=group_id,
@@ -174,7 +174,7 @@ async def delete_watchlist_group(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> Response:
     """删除当前用户的普通空分组。"""
     try:
@@ -182,7 +182,7 @@ async def delete_watchlist_group(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).delete_group(user_id=identity.id, group_id=group_id)
     except WatchlistError as error:
         raise _api_error(error) from error
@@ -205,7 +205,7 @@ async def list_watchlist_items(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(alias="pageSize", ge=1, le=100)] = 20,
 ) -> WatchlistItemListResponse:
@@ -215,7 +215,7 @@ async def list_watchlist_items(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).list_items(
             user_id=identity.id,
             group_id=group_id,
@@ -250,7 +250,7 @@ async def create_watchlist_item(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistItemResponse:
     """向当前用户指定分组添加股票或基金。"""
     try:
@@ -258,7 +258,7 @@ async def create_watchlist_item(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).create_item(
             user_id=identity.id,
             group_id=group_id,
@@ -283,7 +283,7 @@ async def get_watchlist_item(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistItemResponse:
     """返回当前用户拥有的指定观察标的。"""
     try:
@@ -291,7 +291,7 @@ async def get_watchlist_item(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).get_item(user_id=identity.id, item_id=item_id)
     except WatchlistError as error:
         raise _api_error(error) from error
@@ -312,7 +312,7 @@ async def update_watchlist_item(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> WatchlistItemResponse:
     """按版本移动观察标的、修改备注或调整排序。"""
     try:
@@ -320,7 +320,7 @@ async def update_watchlist_item(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).update_item(
             user_id=identity.id,
             item_id=item_id,
@@ -348,7 +348,7 @@ async def delete_watchlist_item(
         MarketDataRepository,
         Depends(get_market_data_repository),
     ],
-    settings: Annotated[Settings, Depends(get_settings)],
+    schedule: Annotated[MarketDataScheduleRecord, Depends(get_market_data_schedule_record)],
 ) -> Response:
     """删除当前用户指定观察标的。"""
     try:
@@ -356,7 +356,7 @@ async def delete_watchlist_item(
             repository,
             instrument_repository,
             market_data_repository,
-            settings,
+            schedule,
         ).delete_item(user_id=identity.id, item_id=item_id)
     except WatchlistError as error:
         raise _api_error(error) from error
@@ -367,14 +367,17 @@ def _service(
     repository: WatchlistRepository,
     instrument_repository: InstrumentRepository,
     market_data_repository: MarketDataRepository,
-    settings: Settings,
+    schedule: MarketDataScheduleRecord,
 ) -> WatchlistService:
     """使用请求级 Repository 和统一行情新鲜度配置创建自选服务。"""
     return WatchlistService(
         repository,
         instrument_repository,
         market_data_repository,
-        MarketDataFreshnessPolicy(stock_refresh_seconds=settings.stock_refresh_seconds),
+        MarketDataFreshnessPolicy(
+            stock_refresh_seconds=schedule.stock_refresh_seconds,
+            fund_estimate_refresh_seconds=schedule.fund_estimate_refresh_seconds,
+        ),
     )
 
 
@@ -387,6 +390,7 @@ def _group_response(view: WatchlistGroupView) -> WatchlistGroupResponse:
         is_default=record.is_default,
         sort_order=record.sort_order,
         item_count=view.item_count,
+        position_count=view.position_count,
         version=record.version,
         created_at=record.created_at,
         updated_at=record.updated_at,
@@ -426,6 +430,7 @@ def _instrument_response(view: InstrumentView) -> InstrumentResponse:
             LatestPriceResponse(
                 price_type=price.record.price_type,
                 value=price.record.value,
+                change_rate=price.record.change_rate,
                 as_of_date=price.record.as_of_date,
                 as_of_at=price.record.as_of_at,
                 fetched_at=price.record.fetched_at,

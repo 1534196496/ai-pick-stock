@@ -20,6 +20,11 @@ def parse_decimal(value: Any) -> Decimal:
 
 
 PositiveDecimal = Annotated[Decimal, BeforeValidator(parse_decimal), Field(gt=0)]
+SignedRate = Annotated[
+    Decimal,
+    BeforeValidator(parse_decimal),
+    Field(ge=Decimal("-10"), le=Decimal("10")),
+]
 
 
 class ProviderModel(BaseModel):
@@ -63,6 +68,7 @@ class StockPriceSnapshot(ProviderModel):
 
     ticker: str = Field(min_length=1, max_length=32)
     value: PositiveDecimal
+    change_rate: SignedRate
     as_of_at: AwareDatetime
     fetched_at: AwareDatetime
     source: str = Field(min_length=1, max_length=80)
@@ -74,6 +80,7 @@ class FundOfficialNavSnapshot(ProviderModel):
     ticker: str = Field(min_length=1, max_length=32)
     unit_nav: PositiveDecimal
     accumulated_nav: PositiveDecimal | None = None
+    change_rate: SignedRate | None = None
     nav_date: date
     fetched_at: AwareDatetime
     source: str = Field(min_length=1, max_length=80)
@@ -84,6 +91,7 @@ class FundEstimatedNavSnapshot(ProviderModel):
 
     ticker: str = Field(min_length=1, max_length=32)
     estimated_nav: PositiveDecimal
+    change_rate: SignedRate
     as_of_at: AwareDatetime
     fetched_at: AwareDatetime
     source: str = Field(min_length=1, max_length=80)

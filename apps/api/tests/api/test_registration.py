@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_auth_repository, get_investment_account_repository
+from app.api.dependencies import get_auth_repository, get_watchlist_repository
 from app.main import create_app
 from app.modules.auth.domain import SecurityEventRecord, UserCredentials, UserIdentity
 from app.modules.auth.enums import SecurityEventType, UserStatus
@@ -75,15 +75,15 @@ class FakeAuthRepository:
         return event
 
 
-class FakeAccountInitializer:
-    """记录注册流程是否创建默认投资账户。"""
+class FakeWatchlistInitializer:
+    """记录注册流程是否创建默认分组。"""
 
     def __init__(self) -> None:
         """初始化用户 ID 记录。"""
         self.user_ids: list[UUID] = []
 
     async def create_default_for_user(self, *, user_id: UUID) -> object:
-        """记录默认账户初始化并返回占位对象。"""
+        """记录默认分组初始化并返回占位对象。"""
         self.user_ids.append(user_id)
         return object()
 
@@ -96,11 +96,9 @@ def registration_client(
     monkeypatch.setenv("AIPICKSTOCK_DATABASE_URL", DUMMY_DATABASE_URL)
     repository = FakeAuthRepository()
     application = create_app()
-    account_initializer = FakeAccountInitializer()
+    watchlist_initializer = FakeWatchlistInitializer()
     application.dependency_overrides[get_auth_repository] = lambda: repository
-    application.dependency_overrides[get_investment_account_repository] = lambda: (
-        account_initializer
-    )
+    application.dependency_overrides[get_watchlist_repository] = lambda: watchlist_initializer
 
     with TestClient(application, headers=SECURE_HEADERS) as client:
         yield client, repository

@@ -55,24 +55,29 @@ async def test_bulk_official_nav_keeps_unit_and_accumulated_values_separate() ->
     await client.aclose()
     assert snapshots[0].unit_nav == Decimal("1.2345")
     assert snapshots[0].accumulated_nav == Decimal("4.5678")
+    assert snapshots[0].change_rate == Decimal("0.02875")
     assert snapshots[0].nav_date == date(2026, 8, 21)
     assert snapshots[0].source == "eastmoney_fund_official_bulk"
 
 
 async def test_missing_bulk_nav_uses_single_fund_official_fallback() -> None:
-    """批量当前净值为空时，仅对请求标的读取单基金走势最后值。"""
+    """批量当前净值为空时，仅对请求标的读取 F10 最新历史净值。"""
     bulk = (
         'var db={datas:[["000001","虚构基金","XG","","","1.2000","4.5"]],'
         'count:["1"],record:"1",pages:"1",curpage:"1",'
         'showday:["2026-08-24","2026-08-21"]}'
     )
-    point_time = int(datetime(2026, 8, 21, tzinfo=UTC).timestamp() * 1000)
-    single = f'var Data_netWorthTrend = [{{"x":{point_time},"y":1.2000}}];'
+    single = (
+        '{"Data":{"LSJZList":['
+        '{"FSRQ":"2026-08-25","DWJZ":"1.2300","LJJZ":"2.3000","JZZZL":"2.50"},'
+        '{"FSRQ":"2026-08-24","DWJZ":"1.2000","LJJZ":"2.2700","JZZZL":"0.00"}'
+        "]}}"
+    )
     paths: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         paths.append(request.url.path)
-        content = single if "pingzhongdata" in request.url.path else bulk
+        content = single if request.url.path.endswith("/f10/lsjz") else bulk
         return httpx.Response(200, content=content.encode())
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -80,10 +85,44 @@ async def test_missing_bulk_nav_uses_single_fund_official_fallback() -> None:
         ["000001"]
     )
     await client.aclose()
-    assert any("pingzhongdata/000001.js" in path for path in paths)
-    assert snapshots[0].unit_nav == Decimal("1.2")
-    assert snapshots[0].nav_date == date(2026, 8, 21)
+    assert any(path.endswith("/f10/lsjz") for path in paths)
+    assert snapshots[0].unit_nav == Decimal("1.2300")
+    assert snapshots[0].accumulated_nav == Decimal("2.3000")
+    assert snapshots[0].change_rate == Decimal("0.025")
+    assert snapshots[0].nav_date == date(2026, 8, 25)
     assert snapshots[0].source == "eastmoney_fund_official_single"
+
+
+async def test_invalid_eastmoney_history_uses_sina_official_fallback() -> None:
+    """东方财富历史响应异常时读取新浪最新净值，避免退回旧缓存。"""
+    bulk = (
+        'var db={datas:[["016702","虚构QDII","XG","","","2.0198","2.0198"]],'
+        'count:["1"],record:"1",pages:"1",curpage:"1",'
+        'showday:["2026-08-26","2026-08-25"]}'
+    )
+    sina = (
+        '{"result":{"status":{"code":0},"data":{"data":['
+        '{"fbrq":"2026-08-25 00:00:00","jjjz":"2.0410","ljjz":"2.0410"},'
+        '{"fbrq":"2026-08-24 00:00:00","jjjz":"2.0198","ljjz":"2.0198"}'
+        "]}}}"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/f10/lsjz"):
+            return httpx.Response(200, content=b"not-json")
+        if "openapi.php" in request.url.path:
+            return httpx.Response(200, content=sina.encode())
+        return httpx.Response(200, content=bulk.encode())
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    snapshots = await FundProvider(ProviderHttpClient(client=client)).fetch_official_navs(
+        ["016702"]
+    )
+    await client.aclose()
+    assert snapshots[0].unit_nav == Decimal("2.0410")
+    assert snapshots[0].change_rate == Decimal("2.0410") / Decimal("2.0198") - Decimal("1")
+    assert snapshots[0].nav_date == date(2026, 8, 25)
+    assert snapshots[0].source == "sina_fund_official_single"
 
 
 async def test_estimated_nav_is_disabled_by_default_without_http() -> None:
@@ -104,12 +143,12 @@ async def test_estimated_nav_is_disabled_by_default_without_http() -> None:
     assert calls == 0
 
 
-async def test_enabled_estimate_parses_jsonp_and_converts_china_time() -> None:
-    """显式启用后估算值仍保持非权威类型和 UTC 时点。"""
+async def test_enabled_estimate_parses_bulk_json_and_converts_china_time() -> None:
+    """显式启用后批量估算值仍保持非权威类型和 UTC 时点。"""
     body = (
-        'jsonpgz({"fundcode":"000001","name":"虚构基金","jzrq":"2026-08-21",'
-        '"dwjz":"1.20","gsz":"1.2345","gszzl":"2.87",'
-        '"gztime":"2026-08-24 14:30"});'
+        '{"success":true,"data":[{"FCODE":"000001","SHORTNAME":"虚构基金",'
+        '"GSZZL":"2.87","GZTIME":"2026-08-24 14:30","GSZ":"1.2345",'
+        '"NAV":"1.20","PDATE":"2026-08-21"}]}'
     )
 
     def handler(_: httpx.Request) -> httpx.Response:
@@ -122,5 +161,34 @@ async def test_enabled_estimate_parses_jsonp_and_converts_china_time() -> None:
     ).fetch_estimated_navs(["000001"])
     await client.aclose()
     assert snapshots[0].estimated_nav == Decimal("1.2345")
+    assert snapshots[0].change_rate == Decimal("0.02875")
     assert snapshots[0].as_of_at == datetime(2026, 8, 24, 6, 30, tzinfo=UTC)
-    assert snapshots[0].source == "eastmoney_fund_estimate_single"
+    assert snapshots[0].source == "eastmoney_fund_estimate_bulk"
+
+
+async def test_missing_bulk_estimate_uses_seasonal_holding_model_fallback() -> None:
+    """东方财富缺少 QDII 估值时读取季报持仓模型结果及其真实估值时点。"""
+    bulk = (
+        '{"success":true,"data":[{"FCODE":"018147","SHORTNAME":"虚构QDII",'
+        '"GSZZL":null,"GZTIME":null,"GSZ":null,"NAV":"2.2680",'
+        '"PDATE":"2026-08-24"}]}'
+    )
+    fallback = (
+        "2026-08-24|2.2680|2.2680|-0.0850|-3.61%|0.18%|0.0041|2.2721|2.3530|2026-08-26|09:00:00"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        content = fallback if request.url.host == "fund.dayfund.com.cn" else bulk
+        return httpx.Response(200, content=content.encode())
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    snapshots = await FundProvider(
+        ProviderHttpClient(client=client),
+        estimate_enabled=True,
+    ).fetch_estimated_navs(["018147"])
+    await client.aclose()
+    assert snapshots[0].ticker == "018147"
+    assert snapshots[0].estimated_nav == Decimal("2.2721")
+    assert snapshots[0].change_rate == Decimal("2.2721") / Decimal("2.2680") - Decimal("1")
+    assert snapshots[0].as_of_at == datetime(2026, 8, 26, 1, 0, tzinfo=UTC)
+    assert snapshots[0].source == "dayfund_fund_estimate"

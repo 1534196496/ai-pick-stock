@@ -1,6 +1,7 @@
 {
   "ticker": "000001",
   "estimated_nav": "1.2410",
+  "change_rate": "0.0053",
   "as_of_at": "2026-08-24T06:30:00Z",
   "fetched_at": "2026-08-24T06:30:02Z",
   "source": "fixture-fund-estimated"

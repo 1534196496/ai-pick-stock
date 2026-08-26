@@ -44,10 +44,11 @@ class WatchlistError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class WatchlistGroupView:
-    """组合自选分组记录和当前观察标的数量。"""
+    """组合统一分组记录及自选、持仓数量。"""
 
     record: WatchlistGroupRecord
     item_count: int
+    position_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,19 +76,29 @@ class WatchlistService:
         self._freshness_policy = freshness_policy
 
     async def list_groups(self, *, user_id: UUID) -> list[WatchlistGroupView]:
-        """返回当前用户全部分组和批量统计的标的数量。"""
+        """返回当前用户全部分组和批量统计的自选、持仓数量。"""
         records = await self._repository.list_groups_for_user(user_id=user_id)
-        counts = await self._repository.item_counts_for_user(user_id=user_id)
+        item_counts = await self._repository.item_counts_for_user(user_id=user_id)
+        position_counts = await self._repository.position_counts_for_user(user_id=user_id)
         return [
-            WatchlistGroupView(record=record, item_count=counts.get(record.id, 0))
+            WatchlistGroupView(
+                record=record,
+                item_count=item_counts.get(record.id, 0),
+                position_count=position_counts.get(record.id, 0),
+            )
             for record in records
         ]
 
     async def get_group(self, *, user_id: UUID, group_id: UUID) -> WatchlistGroupView:
         """读取当前用户分组，越权和不存在统一使用 404 语义。"""
         record = await self._require_group(user_id=user_id, group_id=group_id)
-        counts = await self._repository.item_counts_for_user(user_id=user_id)
-        return WatchlistGroupView(record=record, item_count=counts.get(record.id, 0))
+        item_counts = await self._repository.item_counts_for_user(user_id=user_id)
+        position_counts = await self._repository.position_counts_for_user(user_id=user_id)
+        return WatchlistGroupView(
+            record=record,
+            item_count=item_counts.get(record.id, 0),
+            position_count=position_counts.get(record.id, 0),
+        )
 
     async def create_group(self, *, user_id: UUID, name: str) -> WatchlistGroupView:
         """规范化名称并把新分组追加到用户排序末尾。"""
@@ -102,7 +113,7 @@ class WatchlistService:
                 code="WATCHLIST_GROUP_NAME_ALREADY_EXISTS",
                 message="已经存在同名自选分组",
             )
-        return WatchlistGroupView(record=record, item_count=0)
+        return WatchlistGroupView(record=record, item_count=0, position_count=0)
 
     async def update_group(
         self,
@@ -139,8 +150,13 @@ class WatchlistService:
                 code="WATCHLIST_GROUP_VERSION_CONFLICT",
                 message="分组已在其他页面更新，请重新加载",
             )
-        counts = await self._repository.item_counts_for_user(user_id=user_id)
-        return WatchlistGroupView(record=updated, item_count=counts.get(updated.id, 0))
+        item_counts = await self._repository.item_counts_for_user(user_id=user_id)
+        position_counts = await self._repository.position_counts_for_user(user_id=user_id)
+        return WatchlistGroupView(
+            record=updated,
+            item_count=item_counts.get(updated.id, 0),
+            position_count=position_counts.get(updated.id, 0),
+        )
 
     async def delete_group(self, *, user_id: UUID, group_id: UUID) -> None:
         """拒绝删除默认或非空分组，只删除当前用户普通空分组。"""
@@ -150,13 +166,13 @@ class WatchlistService:
                 code="WATCHLIST_DEFAULT_GROUP_PROTECTED",
                 message="默认分组不能删除",
             )
-        if await self._repository.group_has_items_for_user(
+        if await self._repository.group_has_content_for_user(
             user_id=user_id,
             group_id=group_id,
         ):
             raise WatchlistError(
                 code="WATCHLIST_GROUP_NOT_EMPTY",
-                message="分组仍有自选标的，不能删除",
+                message="分组仍有自选标的或持仓，不能删除",
             )
         if not await self._repository.delete_empty_group_for_user(
             user_id=user_id,
@@ -164,7 +180,7 @@ class WatchlistService:
         ):
             raise WatchlistError(
                 code="WATCHLIST_GROUP_NOT_EMPTY",
-                message="分组已加入自选标的，不能删除",
+                message="分组已加入自选标的或持仓，不能删除",
             )
 
     async def list_items(
