@@ -10,13 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import Settings
 from app.core.errors import ApiError
 from app.core.security import SessionCookiePolicy, create_session_cookie_policy
+from app.modules.analysis.chat_service import AIConversationAgentService
+from app.modules.analysis.conversation_repository import AIConversationRepository
+from app.modules.analysis.provider import AIModelClient
+from app.modules.analysis.repository import AnalysisRepository
 from app.modules.auth.domain import SessionPrincipal, UserIdentity
 from app.modules.auth.mailer import PasswordResetMailer
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.service import AuthService
 from app.modules.instruments.repository import InstrumentRepository
 from app.modules.market_data.domain import MarketDataScheduleRecord
-from app.modules.market_data.providers.contracts import FundNavProvider
+from app.modules.market_data.providers.contracts import FundNavProvider, StockPriceProvider
 from app.modules.market_data.repository import MarketDataRepository
 from app.modules.portfolios.position_repository import PositionRepository
 from app.modules.watchlists.repository import WatchlistRepository
@@ -55,6 +59,20 @@ def get_market_data_repository(
     return MarketDataRepository(session)
 
 
+def get_analysis_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
+) -> AnalysisRepository:
+    """把请求事务绑定到用户隔离的 AI 分析 Repository。"""
+    return AnalysisRepository(session)
+
+
+def get_ai_conversation_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session, scope="function")],
+) -> AIConversationRepository:
+    """把请求事务绑定到用户隔离的 AI 会话 Repository。"""
+    return AIConversationRepository(session)
+
+
 async def get_market_data_schedule_record(
     repository: Annotated[MarketDataRepository, Depends(get_market_data_repository)],
 ) -> MarketDataScheduleRecord:
@@ -86,6 +104,24 @@ def get_fund_nav_provider(request: Request) -> FundNavProvider:
     """返回应用级共享基金行情 Provider。"""
     provider: object = request.app.state.market_data_providers.fund
     return cast(FundNavProvider, provider)
+
+
+def get_stock_price_provider(request: Request) -> StockPriceProvider:
+    """返回应用级共享股票行情与历史 Provider。"""
+    provider: object = request.app.state.market_data_providers.stock
+    return cast(StockPriceProvider, provider)
+
+
+def get_ai_model_client(request: Request) -> AIModelClient | None:
+    """返回全站共享模型客户端，未配置时返回空。"""
+    client: object | None = request.app.state.ai_model_client
+    return cast(AIModelClient | None, client)
+
+
+def get_ai_conversation_agent_service(request: Request) -> AIConversationAgentService | None:
+    """返回应用级 Codex 会话编排器，未配置时返回空。"""
+    service: object | None = request.app.state.ai_conversation_agent_service
+    return cast(AIConversationAgentService | None, service)
 
 
 def get_session_cookie_policy(request: Request) -> SessionCookiePolicy:

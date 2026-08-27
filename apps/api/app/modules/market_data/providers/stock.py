@@ -18,6 +18,7 @@ from app.modules.market_data.providers.http import (
 )
 from app.modules.market_data.providers.schemas import (
     ProviderInstrument,
+    StockDailyBarSnapshot,
     StockPriceSnapshot,
     StockQuoteRequest,
 )
@@ -25,6 +26,10 @@ from app.modules.market_data.providers.schemas import (
 _TENCENT_RANK_URL = "https://proxy.finance.qq.com/cgi/cgi-bin/rank/hs/getBoardRankList"
 _TENCENT_QUOTE_URL = "https://qt.gtimg.cn/q="
 _SINA_QUOTE_URL = "https://hq.sinajs.cn/list="
+_EASTMONEY_DAILY_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+_SINA_DAILY_URL = (
+    "https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20_data=/CN_MarketDataService.getKLineData"
+)
 _HEADERS = {"User-Agent": "ai-pick-stock-worker/2.0", "Referer": "https://stockapp.finance.qq.com/"}
 
 
@@ -61,6 +66,46 @@ class StockProvider:
             return await self._fetch_tencent_quotes(requests)
         except (ProviderUnavailableError, ProviderPayloadError, ValidationError):
             return await self._fetch_sina_quotes(requests)
+
+    async def fetch_stock_daily_bars(
+        self,
+        request: StockQuoteRequest,
+        *,
+        limit: int = 250,
+    ) -> list[StockDailyBarSnapshot]:
+        """读取单只 A 股最近前复权日线并校验价格范围。"""
+        if not 20 <= limit <= 500:
+            raise ValueError("股票历史条数必须在 20 到 500 之间")
+        secid = _eastmoney_secid(request)
+        try:
+            response = await self._http.get(
+                _EASTMONEY_DAILY_URL,
+                params={
+                    "secid": secid,
+                    "klt": "101",
+                    "fqt": "1",
+                    "lmt": str(limit),
+                    "end": "20500101",
+                    "fields1": "f1,f2,f3,f4,f5,f6",
+                    "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+                },
+                headers={**_HEADERS, "Referer": "https://quote.eastmoney.com/"},
+                encoding="utf-8",
+            )
+            return _parse_eastmoney_daily_bars(response.text(), ticker=request.ticker)
+        except (ProviderUnavailableError, ProviderPayloadError):
+            response = await self._http.get(
+                _SINA_DAILY_URL,
+                params={
+                    "symbol": _vendor_symbol(request),
+                    "scale": "240",
+                    "ma": "no",
+                    "datalen": str(limit),
+                },
+                headers={**_HEADERS, "Referer": "https://finance.sina.com.cn/"},
+                encoding="utf-8",
+            )
+            return _parse_sina_daily_bars(response.text(), ticker=request.ticker)
 
     async def _fetch_rank_page(self, *, offset: int) -> dict[str, Any]:
         """读取并校验腾讯榜单的 data 对象。"""
@@ -198,6 +243,87 @@ def _parse_sina_quote(line: str) -> StockPriceSnapshot:
         raise ProviderPayloadError("新浪行情字段校验失败") from error
 
 
+def _parse_eastmoney_daily_bars(
+    text: str,
+    *,
+    ticker: str,
+) -> list[StockDailyBarSnapshot]:
+    """解析东方财富前复权日线，并从相邻记录补出昨收字段。"""
+    try:
+        payload = json.loads(text, parse_float=Decimal)
+        if payload.get("rc") != 0:
+            raise ValueError("东方财富日线响应状态异常")
+        data = payload["data"]
+        rows = data["klines"]
+        if not isinstance(rows, list) or not rows:
+            raise ValueError("东方财富日线数据为空")
+        snapshots: list[StockDailyBarSnapshot] = []
+        previous_close = str(data.get("preKPrice")) if data.get("preKPrice") else None
+        for raw in rows:
+            if not isinstance(raw, str):
+                raise ValueError("东方财富日线记录类型异常")
+            row = raw.split(",")
+            if len(row) < 11:
+                raise ValueError("东方财富日线字段数量异常")
+            snapshot = StockDailyBarSnapshot.model_validate(
+                {
+                    "ticker": ticker,
+                    "trade_date": row[0],
+                    "open": row[1],
+                    "close": row[2],
+                    "high": row[3],
+                    "low": row[4],
+                    "volume": row[5],
+                    "previous_close": previous_close,
+                    "turnover": row[6],
+                    "source": "eastmoney_stock_qfq_daily",
+                }
+            )
+            snapshots.append(snapshot)
+            previous_close = str(snapshot.close)
+        return snapshots
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError, ValidationError) as error:
+        raise ProviderPayloadError("东方财富股票日线结构异常") from error
+
+
+def _parse_sina_daily_bars(
+    text: str,
+    *,
+    ticker: str,
+) -> list[StockDailyBarSnapshot]:
+    """解析新浪未复权日线，作为前复权来源不可用时的保守回退。"""
+    try:
+        start = text.index("=([") + 2
+        end = text.rindex(");")
+        rows = json.loads(text[start:end], parse_float=Decimal)
+        if not isinstance(rows, list) or not rows:
+            raise ValueError("新浪日线数据为空")
+        snapshots: list[StockDailyBarSnapshot] = []
+        previous_close: str | None = None
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError("新浪日线记录类型异常")
+            snapshot = StockDailyBarSnapshot.model_validate(
+                {
+                    "ticker": ticker,
+                    "trade_date": row["day"],
+                    "open": row["open"],
+                    "close": row["close"],
+                    "high": row["high"],
+                    "low": row["low"],
+                    "volume": row.get("volume"),
+                    "previous_close": previous_close,
+                    "turnover": None,
+                    "source": "sina_stock_daily",
+                }
+            )
+            snapshots.append(snapshot)
+            previous_close = str(snapshot.close)
+        return snapshots
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError, ValidationError) as error:
+        raise ProviderPayloadError("新浪股票日线结构异常") from error
+
+
 def _change_rate(current: str, previous_close: str) -> Decimal:
     """使用最新价和昨收价计算比值口径的今日涨跌率。"""
     try:
@@ -216,6 +342,14 @@ def _vendor_symbol(request: StockQuoteRequest) -> str:
     if prefix is None:
         raise ProviderPayloadError("基金交易所不能请求股票行情")
     return prefix + request.ticker
+
+
+def _eastmoney_secid(request: StockQuoteRequest) -> str:
+    """按交易所生成东方财富日线所需的市场编号。"""
+    market = "1" if request.exchange is Exchange.SSE else "0"
+    if request.exchange not in {Exchange.SSE, Exchange.SZSE, Exchange.BSE}:
+        raise ProviderPayloadError("基金交易所不能请求股票日线")
+    return f"{market}.{request.ticker}"
 
 
 def _exchange_from_prefix(prefix: str) -> Exchange:

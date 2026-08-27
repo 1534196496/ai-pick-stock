@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
 import { ApiClientError } from '../../shared/api/client';
+import { AIAnalysisDialog } from '../analysis/AIAnalysisDialog';
+import type { AnalysisTarget } from '../analysis/api';
 import { FundPositionDialog } from '../holdings/FundPositionDialog';
 import type { Position } from '../holdings/api';
 import { StockPositionDialog } from '../holdings/StockPositionDialog';
@@ -34,6 +36,7 @@ export function WatchlistsPage() {
   const [instrumentDialogOpen, setInstrumentDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WatchlistItem | null>(null);
   const [holdingTarget, setHoldingTarget] = useState<HoldingTarget | null>(null);
+  const [analysisTarget, setAnalysisTarget] = useState<AnalysisTarget | null>(null);
   const items = groups.data?.items ?? [];
   const effectiveGroupId = items.some((group) => group.id === selectedGroupId)
     ? selectedGroupId
@@ -153,6 +156,7 @@ export function WatchlistsPage() {
                 isError={watchlistItems.isError}
                 canAddToHoldings={items.length > 0}
                 onEdit={setEditingItem}
+                onAnalyze={(item) => setAnalysisTarget(item.instrument)}
                 onAddToHoldings={(item) => setHoldingTarget({ instrument: item.instrument })}
               />
             </>
@@ -182,6 +186,12 @@ export function WatchlistsPage() {
           item={editingItem}
           groups={items}
           onClose={() => setEditingItem(null)}
+        />
+      )}
+      {analysisTarget !== null && (
+        <AIAnalysisDialog
+          instrument={analysisTarget}
+          onClose={() => setAnalysisTarget(null)}
         />
       )}
       {holdingTarget?.instrument.assetType === 'STOCK' && (

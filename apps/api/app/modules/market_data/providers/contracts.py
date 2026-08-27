@@ -7,6 +7,7 @@ from app.modules.market_data.providers.schemas import (
     FundEstimatedNavSnapshot,
     FundOfficialNavSnapshot,
     ProviderInstrument,
+    StockDailyBarSnapshot,
     StockPriceSnapshot,
     StockQuoteRequest,
 )
@@ -29,6 +30,15 @@ class StockPriceProvider(Protocol):
         """按标准代码批量获取股票价格。"""
         ...
 
+    async def fetch_stock_daily_bars(
+        self,
+        request: StockQuoteRequest,
+        *,
+        limit: int = 250,
+    ) -> Sequence[StockDailyBarSnapshot]:
+        """获取单只股票最近一段前复权日线。"""
+        ...
+
 
 class FundNavProvider(Protocol):
     """分别提供官方单位净值与盘中估算净值。"""
@@ -45,4 +55,13 @@ class FundNavProvider(Protocol):
         tickers: Sequence[str],
     ) -> Sequence[FundEstimatedNavSnapshot]:
         """获取明确标记为估算的盘中净值。"""
+        ...
+
+    async def fetch_official_nav_history(
+        self,
+        ticker: str,
+        *,
+        limit: int = 250,
+    ) -> Sequence[FundOfficialNavSnapshot]:
+        """获取单只基金最近一段官方净值历史。"""
         ...

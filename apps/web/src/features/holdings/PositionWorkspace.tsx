@@ -25,6 +25,7 @@ interface PositionWorkspaceProps {
   onCreateGroup: () => void;
   onSelectAssetType: (assetType: AssetType) => void;
   onEdit: (position: Position) => void;
+  onAnalyze: (position: Position) => void;
 }
 
 /** 以主分组标签和次级资产类型标签组织单张持仓表。 */
@@ -40,6 +41,7 @@ export function PositionWorkspace({
   onCreateGroup,
   onSelectAssetType,
   onEdit,
+  onAnalyze,
 }: PositionWorkspaceProps) {
   const [sorts, setSorts] = useState<Record<AssetType, PositionSort>>(() => ({
     STOCK: readPositionSort('STOCK'),
@@ -149,6 +151,7 @@ export function PositionWorkspace({
               isPending={isPending}
               isError={isError}
               onEdit={onEdit}
+              onAnalyze={onAnalyze}
             />
           </div>
           <div
@@ -168,6 +171,7 @@ export function PositionWorkspace({
               isPending={isPending}
               isError={isError}
               onEdit={onEdit}
+              onAnalyze={onAnalyze}
             />
           </div>
         </div>

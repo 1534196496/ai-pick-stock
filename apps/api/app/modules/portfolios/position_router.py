@@ -423,6 +423,7 @@ def _response(
                     source=valuation.price.source,
                     freshness=valuation.freshness,
                 ),
+                settlement_updated=valuation.settlement_updated,
                 market_value=valuation.market_value,
                 today_profit=valuation.today_profit,
                 holding_profit=valuation.holding_profit,

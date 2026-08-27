@@ -17,6 +17,12 @@ from app.core.middleware import (
     InMemoryAuthenticationRateLimiter,
     RequestSecurityMiddleware,
 )
+from app.modules.analysis.agent_runtime import create_codex_agent_runtime
+from app.modules.analysis.chat_service import AIConversationAgentService
+from app.modules.analysis.conversation_repository import AIConversationStore
+from app.modules.analysis.provider import create_ai_model_client
+from app.modules.analysis.router import conversation_router as analysis_conversation_router
+from app.modules.analysis.router import router as analysis_router
 from app.modules.auth.mailer import SmtpPasswordResetMailer
 from app.modules.auth.router import router as auth_router
 from app.modules.instruments.router import router as instrument_router
@@ -68,10 +74,29 @@ def create_app(
             else None
         )
         providers = create_provider_bundle(settings)
+        ai_model_client = create_ai_model_client(settings)
+        codex_agent_runtime = create_codex_agent_runtime(settings)
+        if codex_agent_runtime is not None:
+            await codex_agent_runtime.start()
         application.state.market_data_providers = providers
+        application.state.ai_model_client = ai_model_client
+        application.state.codex_agent_runtime = codex_agent_runtime
+        application.state.ai_conversation_agent_service = (
+            AIConversationAgentService(
+                store=AIConversationStore(application.state.database_session_factory),
+                runtime=codex_agent_runtime,
+                timeout_seconds=settings.ai_agent_turn_timeout_seconds,
+            )
+            if codex_agent_runtime is not None
+            else None
+        )
         try:
             yield
         finally:
+            if codex_agent_runtime is not None:
+                await codex_agent_runtime.close()
+            if ai_model_client is not None:
+                await ai_model_client.close()
             await providers.close()
             await engine.dispose()
 
@@ -93,6 +118,8 @@ def create_app(
     application.include_router(position_router, prefix="/api/v1")
     application.include_router(position_summary_router, prefix="/api/v1")
     application.include_router(watchlist_router, prefix="/api/v1")
+    application.include_router(analysis_router, prefix="/api/v1")
+    application.include_router(analysis_conversation_router, prefix="/api/v1")
 
     @application.get(
         "/api/v1/health/live",

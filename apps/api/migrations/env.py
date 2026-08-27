@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import Settings
+from app.modules.analysis import models as analysis_models
 from app.modules.auth import models as auth_models
 from app.modules.instruments import models as instrument_models
 from app.modules.market_data import models as market_models
@@ -28,6 +29,9 @@ assert market_models.StockDailyBar.metadata is target_metadata
 assert market_models.MarketDataSchedule.metadata is target_metadata
 assert watchlist_models.WatchlistGroup.metadata is target_metadata
 assert watchlist_models.WatchlistItem.metadata is target_metadata
+assert analysis_models.AIAnalysisReport.metadata is target_metadata
+assert analysis_models.AIConversation.metadata is target_metadata
+assert analysis_models.AIConversationMessage.metadata is target_metadata
 
 
 def run_migrations_offline() -> None:

@@ -34,6 +34,7 @@ class PositionValuation:
     position_id: UUID
     price: PriceRecord
     freshness: DataFreshness
+    settlement_updated: bool
     market_value: Decimal
     today_profit: Decimal | None
     holding_profit: Decimal
@@ -313,6 +314,11 @@ class PositionValuationService:
         price = next((item for item in prices if item.price_type == expected_type), None)
         if price is None:
             return None
+        settlement_updated = _is_price_for_today(
+            position=position,
+            price=price,
+            now=now,
+        )
         market_value = round_decimal(quantity * price.value, field="持仓市值")
         holding_profit = round_decimal(
             market_value - position.record.total_cost,
@@ -322,10 +328,11 @@ class PositionValuationService:
             position_id=position.record.id,
             price=price,
             freshness=self._freshness.for_price(price, now=now),
+            settlement_updated=settlement_updated,
             market_value=market_value,
             today_profit=(
                 _today_profit(market_value=market_value, price=price)
-                if _is_price_for_today(position=position, price=price, now=now)
+                if settlement_updated
                 else None
             ),
             holding_profit=holding_profit,

@@ -23,6 +23,7 @@ interface PositionListProps {
   isPending: boolean;
   isError: boolean;
   onEdit: (position: Position) => void;
+  onAnalyze: (position: Position) => void;
 }
 
 /** 按资产类型展示独立持仓表，避免股票和基金口径混在同一列中。 */
@@ -36,6 +37,7 @@ export function PositionList({
   isPending,
   isError,
   onEdit,
+  onAnalyze,
 }: PositionListProps) {
   const deleteMutation = useDeletePosition();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -85,6 +87,7 @@ export function PositionList({
               confirmDeleteId={confirmDeleteId}
               deleting={deleteMutation.isPending}
               onEdit={onEdit}
+              onAnalyze={onAnalyze}
               onRequestDelete={setConfirmDeleteId}
               onDelete={() => void deleteMutation.mutateAsync(position.id)
                 .then(() => setConfirmDeleteId(null))
@@ -104,6 +107,7 @@ interface PositionRowProps {
   confirmDeleteId: string | null;
   deleting: boolean;
   onEdit: (position: Position) => void;
+  onAnalyze: (position: Position) => void;
   onRequestDelete: (positionId: string | null) => void;
   onDelete: () => void;
 }
@@ -116,6 +120,7 @@ function PositionRow({
   confirmDeleteId,
   deleting,
   onEdit,
+  onAnalyze,
   onRequestDelete,
   onDelete,
 }: PositionRowProps) {
@@ -128,6 +133,8 @@ function PositionRow({
       : null;
   const activeValuation = todayValuation ?? estimate ?? official;
   const officialMarketValue = official?.marketValue ?? null;
+  const settlementUpdated = isFundPosition(position)
+    && official?.settlementUpdated === true;
   const holdingQuantity = position.quantity === null
     ? '份额待补'
     : `${isFundPosition(position) ? '份额' : '数量'} ${formatDecimal(position.quantity)}`;
@@ -152,13 +159,19 @@ function PositionRow({
           </span>
           <span className="position-row__mobile-value">
             {formatAmount(officialMarketValue)}
-            <small>{holdingQuantity}</small>
+            <small>
+              {holdingQuantity}
+              {settlementUpdated && <UpdatedSettlementLabel />}
+            </small>
           </span>
         </button>
       </div>
       <span className="number-cell position-holding-value-cell" role="cell">
         <strong>{formatAmount(officialMarketValue)}</strong>
-        <small>{holdingQuantity}</small>
+        <small>
+          {holdingQuantity}
+          {settlementUpdated && <UpdatedSettlementLabel />}
+        </small>
       </span>
       <span className="position-price-cell" role="cell">
         {official == null ? (
@@ -213,6 +226,9 @@ function PositionRow({
         )}
       </span>
       <span className="position-actions" role="cell">
+        <button type="button" onClick={() => onAnalyze(position)}>
+          AI 分析
+        </button>
         <button className="position-actions__edit" type="button" onClick={() => onEdit(position)}>
           编辑
         </button>
@@ -234,6 +250,11 @@ function PositionRow({
       </span>
     </article>
   );
+}
+
+/** 标记正式净值已经达到当前基金应披露的结算日期。 */
+function UpdatedSettlementLabel() {
+  return <span className="position-settlement-updated">已更新</span>;
 }
 
 /** 判断持仓是否为基金，以统一金额和份额的辅助文案。 */

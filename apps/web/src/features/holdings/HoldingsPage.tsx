@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { AIAnalysisDialog } from '../analysis/AIAnalysisDialog';
+import type { AnalysisTarget } from '../analysis/api';
 import { useWatchlistGroups } from '../watchlists/hooks';
 import { WatchlistGroupDialog } from '../watchlists/WatchlistGroupDialog';
 import type { Instrument } from '../instruments/api';
@@ -23,6 +25,7 @@ export function HoldingsPage() {
   const [instrumentSearchOpen, setInstrumentSearchOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
+  const [analysisTarget, setAnalysisTarget] = useState<AnalysisTarget | null>(null);
   const [marketDataDialogOpen, setMarketDataDialogOpen] = useState(false);
   const groups = useWatchlistGroups();
   const groupItems = groups.data?.items ?? [];
@@ -77,6 +80,7 @@ export function HoldingsPage() {
         onCreateGroup={() => setGroupDialogOpen(true)}
         onSelectAssetType={setActiveAssetType}
         onEdit={setEditingPosition}
+        onAnalyze={(position) => setAnalysisTarget(position.instrument)}
       />
       {groupDialogOpen && (
         <WatchlistGroupDialog
@@ -86,6 +90,12 @@ export function HoldingsPage() {
       )}
       {marketDataDialogOpen && (
         <MarketDataDialog onClose={() => setMarketDataDialogOpen(false)} />
+      )}
+      {analysisTarget !== null && (
+        <AIAnalysisDialog
+          instrument={analysisTarget}
+          onClose={() => setAnalysisTarget(null)}
+        />
       )}
       <InstrumentDialog
         open={instrumentSearchOpen}

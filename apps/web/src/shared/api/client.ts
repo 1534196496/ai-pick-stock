@@ -31,14 +31,16 @@ function getCsrfToken(): string {
   return csrfToken;
 }
 
-/** 通过同源 Cookie 调用 API，并统一解析成功与错误契约。 */
-export async function apiRequest<T>(
+/** 通过同源 Cookie 发起请求，并为普通 JSON 与流式接口统一补齐请求头。 */
+export async function apiFetch(
   path: string,
   init: RequestInit = {},
-): Promise<T> {
+): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
-  headers.set('Accept', 'application/json');
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
   if (init.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
@@ -46,11 +48,25 @@ export async function apiRequest<T>(
     headers.set('X-CSRF-Token', getCsrfToken());
   }
 
-  const response = await fetch(path, {
+  return fetch(path, {
     ...init,
     credentials: 'same-origin',
     headers,
   });
+}
+
+/** 把非成功响应解析为项目统一的客户端错误。 */
+export async function apiErrorFromResponse(response: Response): Promise<ApiClientError> {
+  const payload = await response.json() as ApiErrorPayload;
+  return new ApiClientError(response.status, payload);
+}
+
+/** 通过同源 Cookie 调用 API，并统一解析成功与错误契约。 */
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const response = await apiFetch(path, init);
   if (response.status === 204) {
     return undefined as T;
   }

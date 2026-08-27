@@ -17,10 +17,12 @@ from app.modules.market_data.models import (
     IntradayQuote,
     LatestQuote,
     MarketDataSchedule,
+    StockDailyBar,
 )
 from app.modules.market_data.providers.schemas import (
     FundEstimatedNavSnapshot,
     FundOfficialNavSnapshot,
+    StockDailyBarSnapshot,
     StockPriceSnapshot,
 )
 
@@ -182,6 +184,82 @@ class MarketDataRepository:
         )
         await self._session.execute(statement)
         return len(values)
+
+    async def upsert_stock_daily_bars(
+        self,
+        *,
+        instrument_id: UUID,
+        snapshots: Sequence[StockDailyBarSnapshot],
+    ) -> int:
+        """按股票和交易日幂等保存前复权日线。"""
+        if not snapshots:
+            return 0
+        values = [
+            {
+                "instrument_id": instrument_id,
+                "trade_date": item.trade_date,
+                "open": item.open,
+                "high": item.high,
+                "low": item.low,
+                "close": item.close,
+                "previous_close": item.previous_close,
+                "volume": item.volume,
+                "turnover": item.turnover,
+                "source": item.source,
+            }
+            for item in snapshots
+        ]
+        statement = insert(StockDailyBar).values(values)
+        statement = statement.on_conflict_do_update(
+            index_elements=[StockDailyBar.instrument_id, StockDailyBar.trade_date],
+            set_={
+                "open": statement.excluded.open,
+                "high": statement.excluded.high,
+                "low": statement.excluded.low,
+                "close": statement.excluded.close,
+                "previous_close": statement.excluded.previous_close,
+                "volume": statement.excluded.volume,
+                "turnover": statement.excluded.turnover,
+                "source": statement.excluded.source,
+                "updated_at": datetime.now(UTC),
+            },
+        )
+        await self._session.execute(statement)
+        return len(values)
+
+    async def stock_daily_bars(
+        self,
+        *,
+        instrument_id: UUID,
+        limit: int = 250,
+    ) -> list[StockDailyBar]:
+        """按日期升序返回单只股票最近日线。"""
+        rows = (
+            await self._session.scalars(
+                select(StockDailyBar)
+                .where(StockDailyBar.instrument_id == instrument_id)
+                .order_by(StockDailyBar.trade_date.desc())
+                .limit(limit)
+            )
+        ).all()
+        return list(reversed(rows))
+
+    async def fund_daily_navs(
+        self,
+        *,
+        instrument_id: UUID,
+        limit: int = 250,
+    ) -> list[FundDailyNav]:
+        """按日期升序返回单只基金最近官方净值。"""
+        rows = (
+            await self._session.scalars(
+                select(FundDailyNav)
+                .where(FundDailyNav.instrument_id == instrument_id)
+                .order_by(FundDailyNav.nav_date.desc())
+                .limit(limit)
+            )
+        ).all()
+        return list(reversed(rows))
 
     async def latest_prices(
         self,

@@ -29,11 +29,46 @@ class Settings(BaseSettings):
     market_data_live_enabled: bool = False
     stock_refresh_seconds: int = Field(default=60, ge=30, le=3600)
     fund_estimate_enabled: bool = False
+    ai_provider: Literal["openai", "anthropic"] | None = None
+    ai_base_url: str | None = None
+    ai_api_key: SecretStr | None = None
+    ai_model: str | None = None
+    ai_timeout_seconds: int = Field(default=60, ge=10, le=180)
+    ai_agent_enabled: bool = True
+    ai_agent_codex_bin: str | None = None
+    ai_agent_skill_root: str = "/app/agent_skills"
+    ai_agent_prompt_spec_path: str = "/app/docs/ai-investment-analysis-prompt-spec.md"
+    ai_agent_workspace: str = "/tmp/ai-pick-stock-agent"
+    ai_agent_reasoning_effort: Literal["low", "medium", "high"] = "medium"
+    ai_agent_turn_timeout_seconds: int = Field(default=300, ge=30, le=900)
+    ai_agent_max_concurrency: int = Field(default=3, ge=1, le=10)
 
     @property
     def smtp_configured(self) -> bool:
         """判断生产密码重置投递所需配置是否完整。"""
         return self.smtp_host is not None and self.smtp_from_email is not None
+
+    @property
+    def ai_configured(self) -> bool:
+        """判断全站 AI 分析所需提供商、Key 与模型是否齐全。"""
+        key = self.ai_api_key.get_secret_value() if self.ai_api_key is not None else ""
+        return bool(self.ai_provider and key.strip() and (self.ai_model or "").strip())
+
+    @property
+    def resolved_ai_base_url(self) -> str | None:
+        """返回显式兼容地址或对应官方协议的默认地址。"""
+        if self.ai_provider is None:
+            return None
+        if self.ai_base_url and self.ai_base_url.strip():
+            return self.ai_base_url.strip().rstrip("/")
+        if self.ai_provider == "openai":
+            return "https://api.openai.com/v1"
+        return "https://api.anthropic.com"
+
+    @property
+    def codex_agent_configured(self) -> bool:
+        """判断 OpenAI Responses 协议是否足以启动 Codex Agent。"""
+        return self.ai_agent_enabled and self.ai_provider == "openai" and self.ai_configured
 
     @field_validator("database_url")
     @classmethod

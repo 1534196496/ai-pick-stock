@@ -150,6 +150,58 @@ class FundProvider:
             )
         return snapshots
 
+    async def fetch_official_nav_history(
+        self,
+        ticker: str,
+        *,
+        limit: int = 250,
+    ) -> list[FundOfficialNavSnapshot]:
+        """读取单只基金最近官方净值历史，供走势和 AI 分析复用。"""
+        if not 20 <= limit <= 500:
+            raise ValueError("基金历史条数必须在 20 到 500 之间")
+        page_size = 20
+        page_count = (limit + page_size - 1) // page_size
+        pages = await asyncio.gather(
+            *(
+                self._fetch_official_nav_history_page(
+                    ticker,
+                    page_index=page_index,
+                    page_size=page_size,
+                )
+                for page_index in range(1, page_count + 1)
+            )
+        )
+        snapshots_by_date = {snapshot.nav_date: snapshot for page in pages for snapshot in page}
+        return sorted(snapshots_by_date.values(), key=lambda item: item.nav_date)[-limit:]
+
+    async def _fetch_official_nav_history_page(
+        self,
+        ticker: str,
+        *,
+        page_index: int,
+        page_size: int,
+    ) -> list[FundOfficialNavSnapshot]:
+        """在共享并发限制内读取并解析一页官方基金净值。"""
+        async with self._semaphore:
+            response = await self._http.get(
+                _FUND_OFFICIAL_HISTORY_URL,
+                params={
+                    "fundCode": ticker,
+                    "pageIndex": str(page_index),
+                    "pageSize": str(page_size),
+                },
+                headers={
+                    **_HEADERS,
+                    "Referer": f"https://fundf10.eastmoney.com/{ticker}.html",
+                },
+                encoding="utf-8-sig",
+            )
+        return _parse_eastmoney_official_history_list(
+            response.text(),
+            ticker=ticker,
+            fetched_at=datetime.now(UTC),
+        )
+
     async def _fetch_official_single(self, ticker: str) -> FundOfficialNavSnapshot:
         """优先读取东方财富历史净值，响应异常时回退新浪历史净值。"""
         async with self._semaphore:
@@ -309,6 +361,46 @@ def _parse_eastmoney_official_history(
         ValidationError,
     ) as error:
         raise ProviderPayloadError("东方财富单基金官方净值结构异常") from error
+
+
+def _parse_eastmoney_official_history_list(
+    text: str,
+    *,
+    ticker: str,
+    fetched_at: datetime,
+) -> list[FundOfficialNavSnapshot]:
+    """把东方财富净值历史转换为按日期升序的严格快照列表。"""
+    try:
+        payload = json.loads(text, parse_float=Decimal)
+        if payload.get("ErrCode") != 0:
+            raise ValueError("东方财富基金历史响应状态异常")
+        rows = payload["Data"]["LSJZList"]
+        snapshots = [
+            FundOfficialNavSnapshot.model_validate(
+                {
+                    "ticker": ticker,
+                    "unit_nav": row["DWJZ"],
+                    "accumulated_nav": row.get("LJJZ") or None,
+                    "change_rate": _optional_percentage_ratio(row.get("JZZZL")),
+                    "nav_date": row["FSRQ"],
+                    "fetched_at": fetched_at,
+                    "source": "eastmoney_fund_official_history",
+                }
+            )
+            for row in rows
+            if isinstance(row, dict) and row.get("DWJZ") not in {None, ""}
+        ]
+        if not snapshots:
+            raise ValueError("东方财富基金历史为空")
+        return sorted(snapshots, key=lambda item: item.nav_date)
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+        ValidationError,
+    ) as error:
+        raise ProviderPayloadError("东方财富基金历史结构异常") from error
 
 
 def _parse_sina_official_history(

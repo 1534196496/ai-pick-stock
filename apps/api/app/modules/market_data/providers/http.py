@@ -79,7 +79,7 @@ class ProviderHttpClient:
                     f"来源暂时不可用 status={response.status_code}"
                 )
                 retry_after = _retry_after_seconds(response.headers.get("Retry-After"))
-            except (httpx.TimeoutException, httpx.NetworkError) as error:
+            except httpx.TransportError as error:
                 last_error = error
                 retry_after = None
             except httpx.HTTPStatusError as error:

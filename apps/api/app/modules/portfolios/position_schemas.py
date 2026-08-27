@@ -48,6 +48,7 @@ class PositionValuationResponse(ApiModel):
     """返回单只持仓使用的权威价格及精确估值。"""
 
     price: LatestPriceResponse
+    settlement_updated: bool
     market_value: FinancialDecimal
     today_profit: FinancialDecimal | None = None
     holding_profit: FinancialDecimal

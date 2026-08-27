@@ -1,6 +1,299 @@
 {
   "components": {
     "schemas": {
+      "AIAnalysisResponse": {
+        "description": "返回最近一次结构化 AI 分析及其数据溯源。",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "conclusion": {
+            "$ref": "#/components/schemas/AnalysisConclusion"
+          },
+          "dataAsOf": {
+            "title": "Dataasof",
+            "type": "string"
+          },
+          "dataSources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Datasources",
+            "type": "array"
+          },
+          "disclaimer": {
+            "default": "仅供个人研究参考，不构成投资建议。",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "title": "Generatedat",
+            "type": "string"
+          },
+          "highlights": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Highlights",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument": {
+            "$ref": "#/components/schemas/AnalysisInstrumentResponse"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisMetricResponse"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "risks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Risks",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "instrument",
+          "provider",
+          "model",
+          "dataAsOf",
+          "dataSources",
+          "metrics",
+          "conclusion",
+          "summary",
+          "highlights",
+          "risks",
+          "actions",
+          "generatedAt"
+        ],
+        "title": "AIAnalysisResponse",
+        "type": "object"
+      },
+      "AIConversationMessageCreate": {
+        "additionalProperties": false,
+        "description": "校验用户发送给 Agent 的单轮文本。",
+        "properties": {
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "AIConversationMessageCreate",
+        "type": "object"
+      },
+      "AIConversationMessageResponse": {
+        "description": "返回一条已保存或正在生成的对话消息。",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AIMessageRole"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AIMessageStatus"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "status",
+          "content",
+          "createdAt"
+        ],
+        "title": "AIConversationMessageResponse",
+        "type": "object"
+      },
+      "AIConversationResponse": {
+        "description": "返回当前用户独立的 Codex 会话及完整消息。",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument": {
+            "$ref": "#/components/schemas/AnalysisInstrumentResponse"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AIConversationMessageResponse"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AIConversationStatus"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "instrument",
+          "title",
+          "status",
+          "messages",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "AIConversationResponse",
+        "type": "object"
+      },
+      "AIConversationStatus": {
+        "description": "表示一个会话当前是否可接受下一轮消息。",
+        "enum": [
+          "IDLE",
+          "RUNNING",
+          "FAILED"
+        ],
+        "title": "AIConversationStatus",
+        "type": "string"
+      },
+      "AIMessageRole": {
+        "description": "区分用户输入和 Agent 回复。",
+        "enum": [
+          "USER",
+          "ASSISTANT"
+        ],
+        "title": "AIMessageRole",
+        "type": "string"
+      },
+      "AIMessageStatus": {
+        "description": "记录单条消息是否仍在生成或已经结束。",
+        "enum": [
+          "STREAMING",
+          "COMPLETED",
+          "FAILED"
+        ],
+        "title": "AIMessageStatus",
+        "type": "string"
+      },
+      "AnalysisConclusion": {
+        "description": "用中性研究结论替代确定性买卖指令。",
+        "enum": [
+          "POSITIVE",
+          "NEUTRAL",
+          "CAUTIOUS",
+          "INSUFFICIENT_DATA"
+        ],
+        "title": "AnalysisConclusion",
+        "type": "string"
+      },
+      "AnalysisInstrumentResponse": {
+        "description": "返回分析结果对应的稳定资产身份。",
+        "properties": {
+          "assetType": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "exchange": {
+            "$ref": "#/components/schemas/Exchange"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "assetType",
+          "market",
+          "exchange",
+          "ticker",
+          "name",
+          "currency"
+        ],
+        "title": "AnalysisInstrumentResponse",
+        "type": "object"
+      },
+      "AnalysisMetricResponse": {
+        "description": "返回页面直接展示的一项已计算指标。",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "title": "AnalysisMetricResponse",
+        "type": "object"
+      },
       "AssetType": {
         "description": "区分一期支持的股票与基金。",
         "enum": [
@@ -1232,6 +1525,10 @@
             "title": "Returnrate",
             "type": "string"
           },
+          "settlementUpdated": {
+            "title": "Settlementupdated",
+            "type": "boolean"
+          },
           "todayProfit": {
             "anyOf": [
               {
@@ -1247,6 +1544,7 @@
         },
         "required": [
           "price",
+          "settlementUpdated",
           "marketValue",
           "holdingProfit",
           "returnRate"
@@ -1985,6 +2283,100 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/ai-conversations/{conversation_id}": {
+      "get": {
+        "description": "读取属于当前用户的完整多轮对话。",
+        "operationId": "get_ai_conversation_api_v1_ai_conversations__conversation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIConversationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ai Conversation",
+        "tags": [
+          "ai-conversations"
+        ]
+      }
+    },
+    "/api/v1/ai-conversations/{conversation_id}/messages/stream": {
+      "post": {
+        "description": "用 SSE 实时发送 Codex Skill 状态和逐段回复。",
+        "operationId": "stream_ai_conversation_message_api_v1_ai_conversations__conversation_id__messages_stream_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIConversationMessageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "Codex Agent 增量事件流"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Ai Conversation Message",
+        "tags": [
+          "ai-conversations"
+        ]
+      }
+    },
     "/api/v1/auth/password-reset-requests": {
       "post": {
         "description": "统一接受重置请求，存在账户时通过适配器发送单次链接。",
@@ -2396,6 +2788,196 @@
         "summary": "Get Instrument",
         "tags": [
           "instruments"
+        ]
+      }
+    },
+    "/api/v1/instruments/{instrument_id}/ai-analysis": {
+      "get": {
+        "description": "读取最近报告；尚无报告返回空值，不产生新的模型费用。",
+        "operationId": "get_ai_analysis_api_v1_instruments__instrument_id__ai_analysis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instrument_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Instrument Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AIAnalysisResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Ai Analysis Api V1 Instruments  Instrument Id  Ai Analysis Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ai Analysis",
+        "tags": [
+          "ai-analysis"
+        ]
+      },
+      "post": {
+        "description": "刷新真实历史数据并手动生成或覆盖最近报告。",
+        "operationId": "generate_ai_analysis_api_v1_instruments__instrument_id__ai_analysis_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instrument_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Instrument Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Ai Analysis",
+        "tags": [
+          "ai-analysis"
+        ]
+      }
+    },
+    "/api/v1/instruments/{instrument_id}/ai-conversations": {
+      "post": {
+        "description": "为持仓或自选中的标的创建一个新的 Codex Session。",
+        "operationId": "create_ai_conversation_api_v1_instruments__instrument_id__ai_conversations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instrument_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Instrument Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIConversationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Ai Conversation",
+        "tags": [
+          "ai-analysis"
+        ]
+      }
+    },
+    "/api/v1/instruments/{instrument_id}/ai-conversations/latest": {
+      "get": {
+        "description": "读取当前用户指定标的最近一次多轮会话。",
+        "operationId": "get_latest_ai_conversation_api_v1_instruments__instrument_id__ai_conversations_latest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instrument_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Instrument Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AIConversationResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Latest Ai Conversation Api V1 Instruments  Instrument Id  Ai Conversations Latest Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Latest Ai Conversation",
+        "tags": [
+          "ai-analysis"
         ]
       }
     },

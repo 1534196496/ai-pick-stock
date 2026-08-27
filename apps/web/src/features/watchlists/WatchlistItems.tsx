@@ -7,6 +7,7 @@ interface WatchlistItemsProps {
   isError: boolean;
   canAddToHoldings: boolean;
   onEdit: (item: WatchlistItem) => void;
+  onAnalyze: (item: WatchlistItem) => void;
   onAddToHoldings: (item: WatchlistItem) => void;
 }
 
@@ -17,6 +18,7 @@ export function WatchlistItems({
   isError,
   canAddToHoldings,
   onEdit,
+  onAnalyze,
   onAddToHoldings,
 }: WatchlistItemsProps) {
   if (isPending) return <p className="watchlist-items__status" role="status">正在读取自选标的…</p>;
@@ -46,6 +48,7 @@ export function WatchlistItems({
             <p>{item.note ?? '暂无备注'}</p>
           </div>
           <div className="watchlist-item__actions">
+            <button type="button" onClick={() => onAnalyze(item)}>AI 分析</button>
             <button disabled={!canAddToHoldings} type="button" onClick={() => onAddToHoldings(item)}>加入持有</button>
             <button type="button" onClick={() => onEdit(item)}>管理</button>
           </div>

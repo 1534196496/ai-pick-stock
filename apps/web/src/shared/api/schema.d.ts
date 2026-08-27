@@ -4,6 +4,46 @@
  */
 
 export interface paths {
+    "/api/v1/ai-conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ai Conversation
+         * @description 读取属于当前用户的完整多轮对话。
+         */
+        get: operations["get_ai_conversation_api_v1_ai_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-conversations/{conversation_id}/messages/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stream Ai Conversation Message
+         * @description 用 SSE 实时发送 Codex Skill 状态和逐段回复。
+         */
+        post: operations["stream_ai_conversation_message_api_v1_ai_conversations__conversation_id__messages_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password-reset-requests": {
         parameters: {
             query?: never;
@@ -180,6 +220,70 @@ export interface paths {
          * @description 返回指定一期资产及各价格口径的最新本地快照。
          */
         get: operations["get_instrument_api_v1_instruments__instrument_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instruments/{instrument_id}/ai-analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ai Analysis
+         * @description 读取最近报告；尚无报告返回空值，不产生新的模型费用。
+         */
+        get: operations["get_ai_analysis_api_v1_instruments__instrument_id__ai_analysis_get"];
+        put?: never;
+        /**
+         * Generate Ai Analysis
+         * @description 刷新真实历史数据并手动生成或覆盖最近报告。
+         */
+        post: operations["generate_ai_analysis_api_v1_instruments__instrument_id__ai_analysis_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instruments/{instrument_id}/ai-conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Ai Conversation
+         * @description 为持仓或自选中的标的创建一个新的 Codex Session。
+         */
+        post: operations["create_ai_conversation_api_v1_instruments__instrument_id__ai_conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instruments/{instrument_id}/ai-conversations/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Ai Conversation
+         * @description 读取当前用户指定标的最近一次多轮会话。
+         */
+        get: operations["get_latest_ai_conversation_api_v1_instruments__instrument_id__ai_conversations_latest_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -432,6 +536,155 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AIAnalysisResponse
+         * @description 返回最近一次结构化 AI 分析及其数据溯源。
+         */
+        AIAnalysisResponse: {
+            /** Actions */
+            actions: string[];
+            conclusion: components["schemas"]["AnalysisConclusion"];
+            /** Dataasof */
+            dataAsOf: string;
+            /** Datasources */
+            dataSources: string[];
+            /**
+             * Disclaimer
+             * @default 仅供个人研究参考，不构成投资建议。
+             */
+            disclaimer: string;
+            /**
+             * Generatedat
+             * Format: date-time
+             */
+            generatedAt: string;
+            /** Highlights */
+            highlights: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            instrument: components["schemas"]["AnalysisInstrumentResponse"];
+            /** Metrics */
+            metrics: components["schemas"]["AnalysisMetricResponse"][];
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Risks */
+            risks: string[];
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * AIConversationMessageCreate
+         * @description 校验用户发送给 Agent 的单轮文本。
+         */
+        AIConversationMessageCreate: {
+            /** Content */
+            content: string;
+        };
+        /**
+         * AIConversationMessageResponse
+         * @description 返回一条已保存或正在生成的对话消息。
+         */
+        AIConversationMessageResponse: {
+            /** Content */
+            content: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            role: components["schemas"]["AIMessageRole"];
+            status: components["schemas"]["AIMessageStatus"];
+        };
+        /**
+         * AIConversationResponse
+         * @description 返回当前用户独立的 Codex 会话及完整消息。
+         */
+        AIConversationResponse: {
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            instrument: components["schemas"]["AnalysisInstrumentResponse"];
+            /** Messages */
+            messages: components["schemas"]["AIConversationMessageResponse"][];
+            status: components["schemas"]["AIConversationStatus"];
+            /** Title */
+            title: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /**
+         * AIConversationStatus
+         * @description 表示一个会话当前是否可接受下一轮消息。
+         * @enum {string}
+         */
+        AIConversationStatus: "IDLE" | "RUNNING" | "FAILED";
+        /**
+         * AIMessageRole
+         * @description 区分用户输入和 Agent 回复。
+         * @enum {string}
+         */
+        AIMessageRole: "USER" | "ASSISTANT";
+        /**
+         * AIMessageStatus
+         * @description 记录单条消息是否仍在生成或已经结束。
+         * @enum {string}
+         */
+        AIMessageStatus: "STREAMING" | "COMPLETED" | "FAILED";
+        /**
+         * AnalysisConclusion
+         * @description 用中性研究结论替代确定性买卖指令。
+         * @enum {string}
+         */
+        AnalysisConclusion: "POSITIVE" | "NEUTRAL" | "CAUTIOUS" | "INSUFFICIENT_DATA";
+        /**
+         * AnalysisInstrumentResponse
+         * @description 返回分析结果对应的稳定资产身份。
+         */
+        AnalysisInstrumentResponse: {
+            assetType: components["schemas"]["AssetType"];
+            currency: components["schemas"]["Currency"];
+            exchange: components["schemas"]["Exchange"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            market: components["schemas"]["Market"];
+            /** Name */
+            name: string;
+            /** Ticker */
+            ticker: string;
+        };
+        /**
+         * AnalysisMetricResponse
+         * @description 返回页面直接展示的一项已计算指标。
+         */
+        AnalysisMetricResponse: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
         /**
          * AssetType
          * @description 区分一期支持的股票与基金。
@@ -988,6 +1241,8 @@ export interface components {
             price: components["schemas"]["LatestPriceResponse"];
             /** Returnrate */
             returnRate: string;
+            /** Settlementupdated */
+            settlementUpdated: boolean;
             /** Todayprofit */
             todayProfit?: string | null;
         };
@@ -1301,6 +1556,72 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_ai_conversation_api_v1_ai_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConversationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_ai_conversation_message_api_v1_ai_conversations__conversation_id__messages_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AIConversationMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Codex Agent 增量事件流 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     request_password_reset_api_v1_auth_password_reset_requests_post: {
         parameters: {
             query?: never;
@@ -1597,6 +1918,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InstrumentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ai_analysis_api_v1_instruments__instrument_id__ai_analysis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instrument_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIAnalysisResponse"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_ai_analysis_api_v1_instruments__instrument_id__ai_analysis_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instrument_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIAnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_ai_conversation_api_v1_instruments__instrument_id__ai_conversations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instrument_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConversationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_latest_ai_conversation_api_v1_instruments__instrument_id__ai_conversations_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instrument_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConversationResponse"] | null;
                 };
             };
             /** @description Validation Error */

@@ -14,6 +14,9 @@ dependencies = [
     "argon2-cffi>=25.1,<26",
     "email-validator>=2.3,<3",
     "httpx>=0.28,<1",
+    "akshare>=1.18.94,<2",
+    "efinance>=0.5.9,<1",
+    "yfinance>=1.7,<2",
 ]
 
 [dependency-groups]

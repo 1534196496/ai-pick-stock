@@ -234,7 +234,7 @@
     minmax(8rem, 0.9fr)
     minmax(8.5rem, 1fr)
     minmax(8.5rem, 1fr)
-    minmax(6rem, 0.65fr);
+    minmax(8rem, 0.75fr);
   align-items: center;
   gap: var(--space-3);
 }
@@ -300,6 +300,13 @@
 .position-row__mobile-value small {
   color: var(--muted);
   font-weight: 500;
+}
+
+.position-settlement-updated {
+  margin-left: var(--space-2);
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .position-price-cell,

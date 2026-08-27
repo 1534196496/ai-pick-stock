@@ -20,6 +20,7 @@ def parse_decimal(value: Any) -> Decimal:
 
 
 PositiveDecimal = Annotated[Decimal, BeforeValidator(parse_decimal), Field(gt=0)]
+NonNegativeDecimal = Annotated[Decimal, BeforeValidator(parse_decimal), Field(ge=0)]
 SignedRate = Annotated[
     Decimal,
     BeforeValidator(parse_decimal),
@@ -72,6 +73,28 @@ class StockPriceSnapshot(ProviderModel):
     as_of_at: AwareDatetime
     fetched_at: AwareDatetime
     source: str = Field(min_length=1, max_length=80)
+
+
+class StockDailyBarSnapshot(ProviderModel):
+    """表示用于走势与 AI 分析的单日股票前复权行情。"""
+
+    ticker: str = Field(min_length=1, max_length=32)
+    trade_date: date
+    open: PositiveDecimal
+    high: PositiveDecimal
+    low: PositiveDecimal
+    close: PositiveDecimal
+    previous_close: PositiveDecimal | None = None
+    volume: NonNegativeDecimal | None = None
+    turnover: NonNegativeDecimal | None = None
+    source: str = Field(min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def validate_price_range(self) -> "StockDailyBarSnapshot":
+        """拒绝最高价或最低价与开收盘价矛盾的第三方数据。"""
+        if self.high < max(self.open, self.close) or self.low > min(self.open, self.close):
+            raise ValueError("股票日线高低价范围异常")
+        return self
 
 
 class FundOfficialNavSnapshot(ProviderModel):
